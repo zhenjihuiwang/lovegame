@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI Otome - Story Mode</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;500;700&family=Inter:wght@300;400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <div id="app-container">
+        <audio id="audio-bgm" loop></audio> 
+        <audio id="audio-sfx" loop></audio>
+
+        <div class="layer-bg">
+            <img id="bg-img" src="" class="full-cover transition-all duration-1000">
+            <div id="bg-placeholder" class="absolute inset-0 bg-[#0a0a0a] flex items-center justify-center text-[#333] text-xs tracking-[0.3em] font-serif">NO SIGNAL</div>
+        </div>
+
+        <div class="layer-char">
+            <div id="char-wrapper">
+                <img id="char-img" src="" class="full-cover hidden"> 
+            </div>
+        </div>
+
+        <div class="layer-ui flex flex-col justify-between p-8">
+            <!-- 顶部菜单 -->
+            <div class="flex justify-end pt-4 pointer-events-auto">
+                <button onclick="uiManager.openSettings()" class="text-white/50 hover:text-[#D4AF37] transition">
+                    <i class="ph ph-list text-2xl"></i>
+                </button>
+            </div>
+
+            <div class="flex flex-col gap-6">
+                <!-- 
+                   核心交互区：点击对话框 -> 下一句 
+                -->
+                <div id="dialogue-box" class="editorial-box hidden" onclick="director.next()">
+                    <div class="editorial-header">
+                        <!-- 名字 -->
+                        <div id="char-name" class="name-gold">LOADING</div>
+                        <!-- LOG 按钮 (阻止冒泡，防止触发下一句) -->
+                        <button onclick="event.stopPropagation(); historyManager.show()" class="log-btn">LOG</button>
+                    </div>
+                    
+                    <!-- 正文 -->
+                    <p id="dialogue-text" class="text-content">...</p>
+                    
+                    <!-- 导航控制栏 -->
+                    <div class="nav-controls">
+                        <!-- 后退按钮 (阻止冒泡) -->
+                        <button id="btn-prev" class="nav-arrow hidden" onclick="event.stopPropagation(); director.prev()">
+                            <i class="ph ph-caret-left"></i> BACK
+                        </button>
+                        <!-- 前进指示器 -->
+                        <div id="indicator-next" class="nav-arrow right">
+                            NEXT <i class="ph ph-caret-right"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 输入栏 -->
+                <div class="flex items-end gap-4 pointer-events-auto border-b border-white/20 pb-2 transition-colors focus-within:border-[#D4AF37]">
+                    <span class="text-[10px] text-gray-500 tracking-widest uppercase mb-1 font-sans">RESPONSE</span>
+                    <input type="text" id="user-input" placeholder="..." 
+                           class="flex-1 bg-transparent border-none text-white text-sm font-serif focus:outline-none placeholder-gray-700"
+                           onkeypress="if(event.keyCode==13) aiEngine.send()">
+                    <button onclick="aiEngine.send()" id="send-btn" class="text-white/50 hover:text-[#D4AF37] transition">
+                        <i class="ph ph-paper-plane-right text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- LOG 弹窗 (保持不变) -->
+        <div id="history-modal" class="absolute inset-0 z-40 bg-[#0a0a0a]/95 backdrop-blur-md flex flex-col transition-opacity duration-300 opacity-0 pointer-events-none">
+            <div class="p-8 border-b border-white/10 flex justify-between items-center">
+                <span class="text-[#D4AF37] text-xs tracking-[0.2em] font-serif">DIALOGUE LOG</span>
+                <button onclick="historyManager.hide()" class="text-gray-500 hover:text-white"><i class="ph ph-x text-xl"></i></button>
+            </div>
+            <div id="history-list" class="flex-1 overflow-y-auto p-8 space-y-6 scrollbar-hide"></div>
+        </div>
+
+        <!-- 设置面板 (保持不变，省略部分代码以节省篇幅，功能与之前一致) -->
+        <div id="settings-modal" class="absolute inset-0 z-50 bg-[#050505] transition-transform duration-300 translate-y-full flex flex-col">
+            <!-- (复用上一版的设置面板代码) -->
+            <div class="flex justify-between items-center p-6 border-b border-white/10">
+                <h2 class="text-[#D4AF37] text-lg font-serif italic">Configuration</h2>
+                <button onclick="uiManager.closeSettings()" class="text-gray-500 hover:text-white"><i class="ph ph-x text-2xl"></i></button>
+            </div>
+            <div class="flex px-6 pt-6 gap-8 border-b border-white/5">
+                <button onclick="uiManager.switchTab('brain')" class="tab-btn active" data-tab="brain">BRAIN</button>
+                <button onclick="uiManager.switchTab('persona')" class="tab-btn" data-tab="persona">PERSONA</button>
+                <button onclick="uiManager.switchTab('assets')" class="tab-btn" data-tab="assets">ASSETS</button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-6 scrollbar-hide font-sans">
+                <!-- Tab 1 -->
+                <div id="tab-brain" class="tab-content space-y-6">
+                    <div class="input-group"><label>API URL</label><input type="text" id="api-url" class="mono-input" value="https://api.deepseek.com/chat/completions"></div>
+                    <div class="input-group"><label>API KEY</label><input type="password" id="api-key" class="mono-input"></div>
+                    <div class="input-group">
+                        <label>MODEL</label>
+                        <div class="flex gap-2"><select id="api-model" class="mono-input flex-1"><option value="deepseek-chat">deepseek-chat</option></select><button onclick="aiEngine.fetchModels()" class="gold-btn-outline">TEST</button></div>
+                        <div id="brain-status" class="text-[10px] text-gray-500 mt-1 text-right">DISCONNECTED</div>
+                    </div>
+                </div>
+                <!-- Tab 2 -->
+                <div id="tab-persona" class="tab-content hidden space-y-6">
+                    <div class="input-group"><label>NAME</label><input type="text" id="persona-name" class="mono-input"></div>
+                    <div class="input-group"><label>PROMPT</label><textarea id="persona-prompt" rows="10" class="mono-input"></textarea></div>
+                </div>
+                <!-- Tab 3 -->
+                <div id="tab-assets" class="tab-content hidden space-y-6">
+                    <div class="border border-white/10 p-4">
+                        <div class="grid grid-cols-2 gap-2 mb-2"><select id="upload-type" class="mono-input"><option value="char">Sprite</option><option value="bg">Background</option><option value="audio">Audio</option></select><input type="text" id="upload-tag" placeholder="Tag ID" class="mono-input"></div>
+                        <input type="file" id="upload-file" class="text-xs text-gray-500 mb-2"><button onclick="assetManager.handleUpload()" class="gold-btn w-full">UPLOAD</button>
+                    </div>
+                    <div id="assets-list" class="grid grid-cols-3 gap-2"></div>
+                </div>
+            </div>
+            <div class="p-6 border-t border-white/10"><button onclick="app.saveAllSettings()" class="gold-btn w-full py-3">SAVE SYSTEM</button></div>
+        </div>
+
+        <div id="start-overlay" class="layer-overlay bg-[#050505]" onclick="app.start()">
+            <div class="text-[#D4AF37] text-3xl font-serif italic tracking-widest mb-4">Prologue</div>
+            <div class="text-gray-600 text-[10px] tracking-[0.5em] uppercase">Touch to Start</div>
+        </div>
+    </div>
+    <script src="js/script.js"></script>
+</body>
+</html>
