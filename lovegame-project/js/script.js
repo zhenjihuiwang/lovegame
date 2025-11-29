@@ -1,5 +1,5 @@
 // ==========================================
-// 1. 本地数据库 (保持不变)
+// 1. 本地数据库 (IndexedDB - Assets)
 // ==========================================
 const dbSystem = {
     dbName: "LoveOS_DB", version: 1, db: null,
@@ -40,7 +40,7 @@ const dbSystem = {
 };
 
 // ==========================================
-// 2. 素材管理器 (保持不变)
+// 2. 素材管理器
 // ==========================================
 const assetManager = {
     cache: { char: {}, bg: {}, audio: {} },
@@ -75,23 +75,57 @@ const assetManager = {
 };
 
 // ==========================================
-// 3. 历史记录 (升级支持类型)
+// 3. 历史记录 (持久化升级)
 // ==========================================
 const historyManager = {
     logs: [],
+
+    init: function() {
+        // 从本地存储读取历史
+        const saved = localStorage.getItem('chat_history');
+        if (saved) {
+            try {
+                this.logs = JSON.parse(saved);
+            } catch (e) {
+                console.error("History parse error", e);
+            }
+        }
+    },
+
     add: function(role, text) {
         this.logs.push({ role: role, text: text });
+        this.save();
     },
+
+    save: function() {
+        localStorage.setItem('chat_history', JSON.stringify(this.logs));
+    },
+
+    clear: function() {
+        if(confirm("Permanently delete all chat history?")) {
+            this.logs = [];
+            this.save();
+            aiEngine.clearContext(); // 同时清除 AI 上下文
+            alert("History Cleared.");
+            this.hide();
+        }
+    },
+
     show: function() {
         const container = document.getElementById('history-list');
         container.innerHTML = "";
+        
+        if (this.logs.length === 0) {
+            container.innerHTML = `<div class="text-center text-gray-700 text-xs mt-10">NO RECORDS</div>`;
+        }
+
         this.logs.forEach(log => {
             const div = document.createElement('div');
             div.className = "log-item";
             let roleName = "YOU";
             let roleClass = "user";
             
-            if (log.role === 'dialogue') {
+            if (log.role === 'dialogue' || log.role === 'assistant') { // assistant 是为了兼容
                 roleName = aiEngine.getConfig().charName;
                 roleClass = "ai";
             } else if (log.role === 'narration') {
@@ -108,10 +142,97 @@ const historyManager = {
 };
 
 // ==========================================
-// 4. AI 引擎 (Prompt 重写)
+// 4. 数据备份与恢复 (新增模块)
+// ==========================================
+const dataManager = {
+    backup: function() {
+        const data = {
+            config: {
+                url: localStorage.getItem('conf_url'),
+                key: localStorage.getItem('conf_key'),
+                model: localStorage.getItem('conf_model'),
+                charName: localStorage.getItem('conf_charName'),
+                sysPrompt: localStorage.getItem('conf_sysPrompt')
+            },
+            history: historyManager.logs,
+            context: aiEngine.history // 保存 AI 的上下文记忆
+        };
+
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const date = new Date().toISOString().slice(0,10);
+        a.download = `loveos_backup_${date}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    },
+
+    restore: function(input) {
+        const file = input.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = JSON.parse(e.target.result);
+                
+                // 恢复配置
+                if(data.config) {
+                    if(data.config.url) localStorage.setItem('conf_url', data.config.url);
+                    if(data.config.key) localStorage.setItem('conf_key', data.config.key);
+                    if(data.config.model) localStorage.setItem('conf_model', data.config.model);
+                    if(data.config.charName) localStorage.setItem('conf_charName', data.config.charName);
+                    if(data.config.sysPrompt) localStorage.setItem('conf_sysPrompt', data.config.sysPrompt);
+                }
+
+                // 恢复历史
+                if(data.history) {
+                    historyManager.logs = data.history;
+                    historyManager.save();
+                }
+
+                // 恢复 AI 上下文
+                if(data.context) {
+                    aiEngine.history = data.context;
+                    aiEngine.saveContext();
+                }
+
+                alert("System Restored Successfully. Reloading...");
+                location.reload();
+
+            } catch (err) {
+                alert("Invalid Backup File.");
+                console.error(err);
+            }
+        };
+        reader.readAsText(file);
+    }
+};
+
+// ==========================================
+// 5. AI 引擎 (持久化升级)
 // ==========================================
 const aiEngine = {
-    history: [],
+    history: [], // 上下文记忆
+    
+    init: function() {
+        const savedCtx = localStorage.getItem('ai_context');
+        if(savedCtx) {
+            try { this.history = JSON.parse(savedCtx); } catch(e){}
+        }
+    },
+
+    saveContext: function() {
+        localStorage.setItem('ai_context', JSON.stringify(this.history));
+    },
+
+    clearContext: function() {
+        this.history = [];
+        this.saveContext();
+    },
     
     getConfig: function() {
         return {
@@ -166,7 +287,10 @@ const aiEngine = {
         
         if(this.history.length === 0) this.history.push({ role: "system", content: this.buildSystemPrompt() });
         this.history.push({ role: "user", content: text });
-        historyManager.add('user', text);
+        this.saveContext(); // 保存上下文
+        
+        historyManager.add('user', text); // 保存可见历史
+
         this.request();
     },
 
@@ -190,18 +314,13 @@ const aiEngine = {
             "script": [
                 { 
                     "type": "narration", 
-                    "text": "Description of action or atmosphere.",
+                    "text": "Description...",
                     "visual": { "bg": "ID", "audio": { "bgm": "ID", "sfx": "ID" } }
                 },
                 { 
                     "type": "dialogue", 
-                    "text": "Character line 1.", 
-                    "visual": { "sprite": "ID", "zoom": 2.0, "focus": "50% 20%" }
-                },
-                { 
-                    "type": "dialogue", 
-                    "text": "Character line 2.", 
-                    "visual": { "sprite": "ID_2", "zoom": 1.0 }
+                    "text": "Character line.", 
+                    "visual": { "sprite": "ID", "zoom": 1.0 }
                 }
             ]
         }`;
@@ -226,17 +345,25 @@ const aiEngine = {
             
             try {
                 const responseObj = JSON.parse(content);
-                // 收到新剧本，交给导演加载
+                // 收到新剧本
                 if (responseObj.script && Array.isArray(responseObj.script)) {
                     director.loadScript(responseObj.script);
                     this.history.push({ role: "assistant", content: content });
+                    
+                    // 将 AI 回复也拆解存入历史记录，方便阅读
+                    responseObj.script.forEach(step => {
+                        historyManager.add(step.type, step.text);
+                    });
                 } else {
-                    // 兼容旧格式（万一AI犯蠢）
-                    director.loadScript([{ type: 'dialogue', text: responseObj.text || content, visual: responseObj.visual, audio: responseObj.audio }]);
+                    director.loadScript([{ type: 'dialogue', text: responseObj.text || content }]);
+                    // 兼容旧格式日志
+                    historyManager.add('dialogue', responseObj.text || content);
                 }
+                this.saveContext(); // 保存 AI 记忆
+
             } catch(e) {
-                // 兜底：纯文本
                 director.loadScript([{ type: 'dialogue', text: content }]);
+                historyManager.add('dialogue', content);
             }
 
         } catch(e) {
@@ -248,13 +375,12 @@ const aiEngine = {
 };
 
 // ==========================================
-// 5. 导演引擎 (核心升级：状态机)
+// 6. 导演引擎
 // ==========================================
 const director = {
     queue: [],
     cursor: 0,
 
-    // 加载新剧本
     loadScript: function(scriptArray) {
         this.queue = scriptArray;
         this.cursor = 0;
@@ -262,18 +388,13 @@ const director = {
         this.renderStep();
     },
 
-    // 下一句
     next: function() {
         if (this.cursor < this.queue.length - 1) {
             this.cursor++;
             this.renderStep();
-        } else {
-            // 剧本播完了，提示用户输入
-            // 可以加一个 visual feedback，比如箭头闪烁停止
         }
     },
 
-    // 上一句
     prev: function() {
         if (this.cursor > 0) {
             this.cursor--;
@@ -281,12 +402,11 @@ const director = {
         }
     },
 
-    // 渲染当前步
     renderStep: function() {
         const step = this.queue[this.cursor];
         if (!step) return;
 
-        // 1. UI 状态控制 (前进后退按钮)
+        // UI 状态
         const btnPrev = document.getElementById('btn-prev');
         const indicator = document.getElementById('indicator-next');
         const box = document.getElementById('dialogue-box');
@@ -295,37 +415,31 @@ const director = {
         if (this.cursor > 0) btnPrev.classList.remove('hidden');
         else btnPrev.classList.add('hidden');
 
-        if (this.cursor >= this.queue.length - 1) indicator.style.opacity = "0.3"; // 到底了变淡
+        if (this.cursor >= this.queue.length - 1) indicator.style.opacity = "0.3"; 
         else indicator.style.opacity = "1";
 
-        // 2. 文本与样式
+        // 文本
         document.getElementById('dialogue-text').innerText = step.text;
         
-        // 记录历史（如果是第一次播放到这一步，可以记一下，这里为了简化，每次 request 成功时已记入）
-        // 如果想记录用户的每一步阅读，逻辑会更复杂，这里暂不处理。
-
-        // 旁白 vs 对话 样式切换
+        // 样式切换
         if (step.type === 'narration') {
             box.classList.add('narration-mode');
         } else {
             box.classList.remove('narration-mode');
-            // 更新名字（以防万一配置改了）
             nameEl.innerText = aiEngine.getConfig().charName;
         }
 
-        // 3. 视觉渲染
+        // 视觉
         if (step.visual) {
             const wrapper = document.getElementById('char-wrapper');
             const charImg = document.getElementById('char-img');
             const bgImg = document.getElementById('bg-img');
             const cache = assetManager.cache;
 
-            // 运镜
             wrapper.style.transform = `scale(${step.visual.zoom || 1})`;
             wrapper.style.transformOrigin = step.visual.focus || "50% 25%";
             bgImg.style.filter = step.visual.filter || "none";
 
-            // 换图
             if(step.visual.sprite && cache.char[step.visual.sprite]) {
                 charImg.src = cache.char[step.visual.sprite];
                 charImg.classList.remove('hidden');
@@ -342,7 +456,7 @@ const director = {
             }
         }
 
-        // 4. 音频渲染
+        // 音频
         if (step.audio) {
             const cache = assetManager.cache;
             const play = (el, id) => {
@@ -357,10 +471,16 @@ const director = {
     }
 };
 
+// ==========================================
+// 7. App 启动
+// ==========================================
 const app = {
     start: function() {
         document.getElementById('start-overlay').style.display = 'none';
+        
+        // 初始化各个模块
         assetManager.init().then(() => {
+            // 回显配置
             document.getElementById('api-url').value = aiEngine.getConfig().url;
             document.getElementById('api-key').value = aiEngine.getConfig().key;
             
@@ -372,6 +492,10 @@ const app = {
             document.getElementById('persona-name').value = aiEngine.getConfig().charName;
             document.getElementById('persona-prompt').value = aiEngine.getConfig().sysPrompt;
             document.getElementById('char-name').innerText = aiEngine.getConfig().charName;
+            
+            // 初始化历史记录和记忆
+            historyManager.init();
+            aiEngine.init();
         });
     },
     saveAllSettings: function() {

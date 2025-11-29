@@ -1,3 +1,4 @@
+/* 引入衬线字体优先 */
 body { background-color: #000; overflow: hidden; font-family: 'Noto Serif SC', 'Times New Roman', serif; }
 
 #app-container {
@@ -20,6 +21,7 @@ body { background-color: #000; overflow: hidden; font-family: 'Noto Serif SC', '
 
 /* ==== 杂志风核心组件 ==== */
 
+/* 对话框容器 */
 .editorial-box {
     position: relative;
     background: rgba(10, 10, 10, 0.9); /* 加深底色 */
@@ -96,7 +98,13 @@ body { background-color: #000; overflow: hidden; font-family: 'Noto Serif SC', '
 .tab-btn { font-family: 'Inter', sans-serif; font-size: 12px; color: #444; padding-bottom: 4px; letter-spacing: 1px; }
 .tab-btn.active { color: #D4AF37; border-bottom: 1px solid #D4AF37; }
 .scrollbar-hide::-webkit-scrollbar { display: none; }
-.modal-open { opacity: 1 !important; pointer-events: auto !important; }
+
+/* ==== 核心修复：添加 transform 重置 ==== */
+.modal-open { 
+    opacity: 1 !important; 
+    pointer-events: auto !important; 
+    transform: translateY(0) !important; /* 这里是修复的关键！让它滑上来 */
+}
 
 @keyframes pulse {
     0%, 100% { opacity: 0.5; }
