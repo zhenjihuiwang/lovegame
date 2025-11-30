@@ -40,17 +40,6 @@ body { background-color: #000; overflow: hidden; font-family: "PingFang SC", "Mi
 .nav-arrow:hover { color: #D4AF37; }
 .nav-arrow.right { margin-left: auto; animation: pulse 2s infinite; }
 
-/* 输入栏 */
-.input-bar-container { display: flex; align-items: center; gap: 12px; background: rgba(20, 20, 20, 0.95); border: 1px solid #333; border-radius: 12px; padding: 12px 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); transition: border-color 0.3s; }
-.input-bar-container:focus-within { border-color: #D4AF37; }
-.mode-switch-btn { font-size: 10px; color: #D4AF37; font-weight: bold; letter-spacing: 1px; white-space: nowrap; cursor: pointer; min-width: 60px; text-align: left; }
-#user-input { flex: 1; background: transparent; border: none; color: white; font-size: 14px; outline: none; }
-#user-input::placeholder { color: #555; }
-.icon-btn { color: #666; transition: all 0.2s; cursor: pointer; display: flex; align-items: center; }
-.icon-btn:hover { color: #fff; transform: scale(1.1); }
-.icon-btn.action { color: #D4AF37; }
-.icon-btn.action:hover { color: #ffd700; }
-
 /* 资产管理 UI */
 .filter-chip { padding: 6px 16px; border: 1px solid #333; border-radius: 20px; font-size: 10px; color: #666; background: #111; white-space: nowrap; transition: all 0.2s; cursor: pointer; }
 .filter-chip:hover { color: #fff; border-color: #555; }
@@ -60,7 +49,7 @@ body { background-color: #000; overflow: hidden; font-family: "PingFang SC", "Mi
 .scope-chip:hover { color: #fff; }
 .scope-chip.active { border-color: #D4AF37; color: #D4AF37; background: rgba(212, 175, 55, 0.05); }
 
-/* ==== 标签胶囊样式 (NEW) ==== */
+/* ==== 标签胶囊样式 ==== */
 .tag-chip { 
     padding: 2px 8px; font-size: 9px; border: 1px solid #444; 
     color: #888; background: #1a1a1a; border-radius: 2px;
@@ -91,5 +80,168 @@ body { background-color: #000; overflow: hidden; font-family: "PingFang SC", "Mi
 .log-text { font-size: 14px; color: #ccc; line-height: 1.6; }
 
 @keyframes pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
-@keyframes pulse-slow { 0%, 100% { opacity: 0.8; } 50% { opacity: 0.4; } }
-.animate-pulse-slow { animation: pulse-slow 3s infinite; }
+@keyframes rotate-sparkle { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+/* =========================================
+   高级感输入栏样式 (终极修复版)
+   ========================================= */
+
+/* 1. 整体容器 */
+.input-glass-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between; /* 确保内容两端对齐 */
+    width: 100%;
+    height: 56px;
+    background: rgba(10, 10, 10, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 100px;
+    
+    /* 核心布局修复 */
+    box-sizing: border-box; 
+    padding: 0 8px 0 20px; /* 左宽右窄，给按钮留空间 */
+    flex-wrap: nowrap; /* 严禁换行 */
+    
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+    transition: all 0.3s;
+    pointer-events: auto;
+    margin-top: auto;
+}
+
+/* 激活时光效 */
+.input-glass-bar:focus-within {
+    border-color: rgba(212, 175, 55, 0.5);
+    box-shadow: 0 8px 40px rgba(212, 175, 55, 0.15);
+}
+
+/* 2. 左侧模式切换 */
+.mode-switch-text {
+    font-size: 10px;
+    color: #666;
+    letter-spacing: 1px; /* 稍微减小字间距以节省手机空间 */
+    text-transform: uppercase;
+    font-weight: 600;
+    white-space: nowrap; /* 不许换行 */
+    flex-shrink: 0; /* 不许被挤压 */
+    cursor: pointer;
+    transition: color 0.3s;
+}
+.mode-switch-text:hover { color: #D4AF37; }
+
+/* 3. 竖线分割 */
+.input-divider {
+    width: 1px;
+    height: 16px;
+    background: rgba(255, 255, 255, 0.15);
+    margin: 0 12px; /* 减小间距 */
+    flex-shrink: 0; /* 不许消失 */
+}
+
+/* 4. 输入框 (布局核心) */
+#user-input {
+    flex: 1; /* 占据剩余所有空间 */
+    width: 0; /* 【关键】防止 Flex 子元素溢出 */
+    min-width: 0; /* 【关键】适配 Firefox/Mobile */
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #e5e5e5;
+    font-family: "Noto Serif SC", serif;
+    font-size: 14px;
+    letter-spacing: 0.5px;
+    padding: 0;
+}
+
+/* 5. 右侧按钮组容器 */
+.action-buttons {
+    display: flex;
+    align-items: center;
+    gap: 4px; 
+    flex-shrink: 0; /* 【关键】严禁被输入框挤压 */
+    margin-left: 8px;
+}
+
+/* 6. 发送键 */
+.btn-send-style {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;  /* 适配手机调整大小 */
+    height: 36px;
+    border-radius: 50%;
+    color: #ccc; 
+    font-size: 20px;
+    transition: all 0.2s;
+    background: transparent;
+    cursor: pointer;
+    border: none; /* 移除默认边框 */
+    flex-shrink: 0;
+}
+.btn-send-style:hover {
+    color: #D4AF37;
+    background: rgba(255, 255, 255, 0.1);
+    transform: scale(1.1);
+}
+.btn-send-style:active { transform: scale(0.95); }
+
+/* 7. 生成键 */
+.btn-sparkle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px; /* 适配手机调整大小 */
+    height: 36px;
+    color: #aaa;
+    font-size: 22px;
+    transition: all 0.5s;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    flex-shrink: 0;
+}
+.btn-sparkle:hover {
+    color: #fff;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.9);
+    animation: rotate-sparkle 3s linear infinite;
+}
+
+/* 功能坞和手账样式保持不变，确保完整性 */
+#dock-panel {
+    position: absolute; inset: 0; z-index: 200;
+    pointer-events: none; opacity: 0; transition: opacity 0.3s;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(2px);
+}
+#dock-panel.open { opacity: 1; pointer-events: auto; }
+.dock-content {
+    position: absolute; top: 0; right: 0; bottom: 0;
+    width: 280px; background: #0a0a0a; border-left: 1px solid #333;
+    transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    display: flex; flex-direction: column;
+}
+#dock-panel.open .dock-content { transform: translateX(0); }
+.app-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; padding: 24px; align-content: start; }
+.app-icon { display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; transition: transform 0.2s; }
+.app-icon:hover { transform: translateY(-3px); }
+.app-icon-box {
+    width: 48px; height: 48px; border-radius: 12px; background: #1a1a1a; border: 1px solid #333;
+    display: flex; align-items: center; justify-content: center; font-size: 24px; color: #D4AF37;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+.app-name { font-size: 10px; color: #888; letter-spacing: 1px; }
+.app-window { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #050505; }
+.memo-list { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-col; gap: 12px; }
+.memo-card { background: #111; border: 1px solid #222; border-radius: 4px; padding: 12px; margin-bottom: 12px; }
+.memo-header { display: flex; justify-content: space-between; margin-bottom: 8px; border-bottom: 1px solid #222; padding-bottom: 6px; }
+.memo-topic { font-size: 10px; color: #D4AF37; display: flex; align-items: center; gap: 4px; text-transform: uppercase; }
+.memo-date { font-size: 9px; color: #444; }
+.memo-text { font-size: 13px; color: #ccc; line-height: 1.5; font-family: serif; }
+
+/* Toast */
+#toast-notification {
+    position: absolute; top: 20px; left: 50%; transform: translateX(-50%) translateY(-20px);
+    background: rgba(212, 175, 55, 0.9); color: #000; padding: 8px 16px; border-radius: 20px;
+    display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: bold;
+    opacity: 0; pointer-events: none; transition: all 0.3s; z-index: 300;
+}
+#toast-notification.show { opacity: 1; transform: translateX(-50%) translateY(0); }
