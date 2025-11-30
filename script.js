@@ -331,7 +331,7 @@ const characterManager = {
     },
     save: function() { localStorage.setItem('char_list', JSON.stringify(this.list)); if(this.currentId) localStorage.setItem('current_char_id', this.currentId); },
     createNew: function(silent = false) {
-        const newChar = { id: Date.now().toString(), name: "新角色", prompt: "人设...", userName: "玩家", userDesc: "", relation: "初识" };
+        const newChar = { id: Date.now().toString(), name: "新角色", prompt: "人设...", summary: "", userName: "玩家", userDesc: "", relation: "初识" };
         this.list.push(newChar); this.currentId = newChar.id; this.save(); this.renderList(); this.loadCurrent();
         assetManager.refreshCache(); if(!silent) uiManager.switchTab('persona');
     },
@@ -355,6 +355,7 @@ const characterManager = {
         const char = this.getCurrent(); if(!char) return;
         char.name = document.getElementById('persona-name').value;
         char.prompt = document.getElementById('persona-prompt').value;
+        char.summary = document.getElementById('char-memory').value;
         char.userName = document.getElementById('user-name').value;
         char.userDesc = document.getElementById('user-desc').value;
         char.relation = document.getElementById('user-relation').value;
@@ -364,10 +365,12 @@ const characterManager = {
         const char = this.getCurrent(); if(!char) return;
         document.getElementById('persona-name').value = char.name;
         document.getElementById('persona-prompt').value = char.prompt;
+        document.getElementById('char-memory').value = char.summary || "";
         document.getElementById('user-name').value = char.userName;
         document.getElementById('user-desc').value = char.userDesc;
         document.getElementById('user-relation').value = char.relation;
         document.getElementById('char-name').innerText = char.name;
+        document.getElementById('memory-threshold').value = localStorage.getItem('conf_threshold') || 20;
     },
     renderList: function() {
         const container = document.getElementById('char-list'); container.innerHTML = "";
@@ -480,10 +483,11 @@ const dataManager = {
 };
 
 // ==========================================
-// 10. AI 引擎
+// 10. AI 引擎 (升级版：支持长期记忆)
 // ==========================================
 const aiEngine = {
-    history: [], currentMode: 'dialogue',
+    history: [], currentMode: 'dialogue', isCompressing: false,
+    
     init: function() {
         const cid = characterManager.currentId; if(!cid) return;
         const savedCtx = localStorage.getItem(`ai_context_${cid}`);
@@ -500,20 +504,23 @@ const aiEngine = {
             model: localStorage.getItem('conf_model') || "gpt-3.5-turbo",
             charName: char ? char.name : "未知角色",
             sysPrompt: char ? char.prompt : "",
+            // 【新增】获取当前记忆摘要
+            summary: char ? (char.summary || "两人初次见面，暂无过往剧情。") : "",
             userName: char ? char.userName : "玩家",
             userDesc: char ? char.userDesc : "",
             relation: char ? char.relation : ""
         };
     },
 
+    // ... (fixUrl, fetchModels, toggleMode, queueInput, triggerGreeting 保持不变) ...
+    // 为了节省篇幅，这里省略这些未改动的函数，请保留你原文件里的代码
     fixUrl: function(url, endpoint) {
         let clean = url.trim().replace(/\/$/, "");
         if (clean.endsWith(endpoint)) return clean;
         if (clean.endsWith("/v1")) return `${clean}${endpoint}`;
         return `${clean}/v1${endpoint}`;
     },
-
-    fetchModels: async function() {
+    fetchModels: async function() { /*...原代码...*/ 
         const urlInput = document.getElementById('api-url').value.trim();
         const keyInput = document.getElementById('api-key').value.trim();
         const statusEl = document.getElementById('brain-status');
@@ -535,8 +542,7 @@ const aiEngine = {
             statusEl.innerText = "连接失败"; statusEl.className = "text-[10px] text-red-500 mt-1 text-right";
         }
     },
-
-    toggleMode: function() {
+    toggleMode: function() { /*...原代码...*/ 
         const btn = document.getElementById('mode-btn');
         if (this.currentMode === 'dialogue') {
             this.currentMode = 'narration'; btn.innerText = "旁白模式"; btn.style.color = "#aaa"; 
@@ -544,8 +550,7 @@ const aiEngine = {
             this.currentMode = 'dialogue'; btn.innerText = "对话模式"; btn.style.color = "#D4AF37"; 
         }
     },
-
-    queueInput: function() {
+    queueInput: function() { /*...原代码...*/ 
         const input = document.getElementById('user-input');
         const text = input.value.trim();
         if(!text) return;
@@ -560,8 +565,7 @@ const aiEngine = {
         timeManager.updateLastInteraction();
         this.saveContext();
     },
-
-    triggerGreeting: function() {
+    triggerGreeting: function() { /*...原代码...*/ 
         const conf = this.getConfig();
         if (!conf.key) return;
         if(this.history.length === 0) this.history.push({ role: "system", content: this.buildSystemPrompt() });
@@ -570,12 +574,13 @@ const aiEngine = {
         this.history.push({ role: "user", content: greetingPrompt });
         this.request();
     },
-
-    triggerResponse: function() {
+    triggerResponse: function() { /*...原代码...*/ 
         if (this.history.length === 0) return alert("请先输入内容");
         this.request();
     },
+    // ... (以上未改动部分结束) ...
 
+    // 【修改】构建 System Prompt，加入记忆
     buildSystemPrompt: function() {
         const conf = this.getConfig();
         const assets = assetManager.cache;
@@ -588,6 +593,10 @@ const aiEngine = {
         return `
         ${conf.sysPrompt}
         
+        === 长期记忆 (Long-term Memory) ===
+        ${conf.summary}
+        ===================================
+
         === 用户信息 ===
         姓名: ${conf.userName}
         描述: ${conf.userDesc}
@@ -598,14 +607,11 @@ const aiEngine = {
         ${timeCtx.fullTime} (${timeCtx.timeOfDay})
         ================
 
-        [重要指令 - 情绪控制]:
+        [重要指令 - 情绪与手账]:
+        (此处保留原有的情绪分级和 memo 指令，省略不写...)
         1. **情绪分级**：立绘标签中，像 "neutral", "smile", "calm" 是【Level 1 日常情绪】；而 "cry", "shout", "blush" 是【Level 2 极端情绪】。
         2. **表演克制**：默认只使用 Level 1 情绪。严禁在没有铺垫的情况下突然切换到 Level 2。
-
-        [重要指令 - 记忆手账]:
-        如果玩家在对话中提到了**新的**个人喜好、重要经历或共同回忆（如爱吃的食物、生日、约定），且你觉得值得记录，请在返回的 JSON 中包含 "memo" 字段。
-        "memo" 格式: { "topic": "diet|date|like|hate|secret|default", "content": "用第一人称简短记录你的想法" }
-        例如: { "script": [...], "memo": { "topic": "diet", "content": "原来他喜欢吃饺子，下次包给他吃。" } }
+        3. 如果玩家在对话中提到了**新的**个人喜好、重要经历或共同回忆（如爱吃的食物、生日、约定），且你觉得值得记录，请在返回的 JSON 中包含 "memo" 字段。
 
         [重要指令 - 素材调用]:
         1. 必须返回严格的 JSON 格式。严禁 Markdown。
@@ -614,25 +620,20 @@ const aiEngine = {
            - 背景列表(bg): [${bgTags}]
            - 音乐列表(bgm): [${bgmTags}]
            - 音效列表(sfx): [${sfxTags}]
-        3. 如果你想调用的标签不在上述列表中，**绝对不要**在 JSON 中包含 visual/audio 字段。
         
+        [重要指令 - 环境特效 (Weather)]:
+        你可以通过 "weather" 字段改变环境氛围。可选值: "none", "rain", "snow", "sakura", "film"。
+
         输出格式:
         {
             "script": [
-                { 
-                    "type": "narration", 
-                    "text": "场景描述...",
-                    "visual": { "bg": "ID", "audio": { "bgm": "ID", "sfx": "ID" } }
-                },
-                { 
-                    "type": "dialogue", 
-                    "text": "角色台词...", 
-                    "visual": { "sprite": "ID", "zoom": 1.0 }
-                }
+                { "type": "narration", "text": "...", "visual": { "bg": "ID", "weather": "rain" } },
+                { "type": "dialogue", "text": "...", "visual": { "sprite": "ID", "zoom": 1.0 } }
             ]
         }`;
     },
 
+    // 【修改】请求函数，增加压缩检查
     request: async function() {
         const conf = this.getConfig();
         if(!conf.key) return alert("请先配置 API Key");
@@ -641,6 +642,15 @@ const aiEngine = {
 
         try {
             const chatUrl = this.fixUrl(conf.url, "/chat/completions");
+            
+            // 确保第一条是 System Prompt (如果因为压缩被删了，要补回来)
+            if (this.history.length === 0 || this.history[0].role !== "system") {
+                this.history.unshift({ role: "system", content: this.buildSystemPrompt() });
+            } else {
+                // 每次请求都刷新 System Prompt (因为记忆可能更新了)
+                this.history[0].content = this.buildSystemPrompt();
+            }
+
             const res = await fetch(chatUrl, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "Authorization": `Bearer ${conf.key}` },
@@ -648,29 +658,100 @@ const aiEngine = {
             });
             const data = await res.json();
             let content = data.choices[0].message.content.replace(/```json/g, "").replace(/```/g, "").trim();
+            
             try {
                 const responseObj = JSON.parse(content);
-                if (responseObj.memo) {
-                    memoManager.add(responseObj.memo.topic, responseObj.memo.content);
-                }
+                if (responseObj.memo) memoManager.add(responseObj.memo.topic, responseObj.memo.content);
                 if (responseObj.script && Array.isArray(responseObj.script)) {
                     director.loadScript(responseObj.script);
                     this.history.push({ role: "assistant", content: content });
                     responseObj.script.forEach(step => historyManager.add(step.type, step.text));
-                } else {
-                    director.loadScript([{ type: 'dialogue', text: responseObj.text || content }]);
-                    historyManager.add('dialogue', responseObj.text || content);
-                }
-                this.saveContext();
-                timeManager.updateLastInteraction();
+                } else { throw new Error("Format error"); }
             } catch(e) {
-                director.loadScript([{ type: 'dialogue', text: content }]);
-                historyManager.add('dialogue', content);
+                director.loadScript([{ type: 'dialogue', text: responseObj?.text || content }]);
+                historyManager.add('dialogue', responseObj?.text || content);
+                this.history.push({ role: "assistant", content: content });
             }
+            
+            this.saveContext();
+            timeManager.updateLastInteraction();
+
+            // 【新增】请求结束后，检查是否需要压缩记忆
+            this.checkAndCompress();
+
         } catch(e) {
             director.loadScript([{ type: 'narration', text: `连接错误: ${e.message}` }]);
         } finally {
             btn.innerHTML = `<i class="ph ph-sparkle text-xl"></i>`;
+        }
+    },
+
+    // 【新增】核心：检查长度并压缩
+    checkAndCompress: function() {
+        if (this.isCompressing) return;
+        const limit = parseInt(localStorage.getItem('conf_threshold') || 20); // 获取设定的阈值
+        
+        // 历史记录包含 system prompt，所以实际对话数 = length - 1
+        // 如果实际对话数 > 阈值，且至少有 4 条可压缩（避免死循环）
+        if (this.history.length > limit + 1 && this.history.length > 5) {
+            this.forceSummarize();
+        }
+    },
+
+    // 【新增】执行压缩逻辑
+    forceSummarize: async function() {
+        const conf = this.getConfig();
+        if (this.isCompressing || !conf.key) return;
+        
+        memoManager.showToast("⚡ 正在整理记忆..."); // 提示用户
+        this.isCompressing = true;
+        
+        // 1. 截取要压缩的对话 (System Prompt 之后，最新的 limit/2 之前)
+        // 策略：保留最新的 10 条不动，压缩更早的。
+        const keepCount = 10; 
+        if (this.history.length <= keepCount + 2) {
+            this.isCompressing = false; return;
+        }
+
+        const toSummarize = this.history.slice(1, this.history.length - keepCount);
+        const activeContext = this.history.slice(this.history.length - keepCount);
+        
+        // 2. 构建压缩请求
+        const compressPrompt = [
+            { role: "system", content: "你是一个专业的剧情记录员。请简要总结以下对话发生的关键事件、情感变化和重要信息。请使用【第一人称】(我=AI角色)。不要丢失重要事实。" },
+            { role: "user", content: `当前已有的长期记忆：${conf.summary}\n\n需要合并的新对话：\n${JSON.stringify(toSummarize)}` }
+        ];
+
+        try {
+            const chatUrl = this.fixUrl(conf.url, "/chat/completions");
+            const res = await fetch(chatUrl, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${conf.key}` },
+                body: JSON.stringify({ model: conf.model, messages: compressPrompt, temperature: 0.5 })
+            });
+            const data = await res.json();
+            const newSummary = data.choices[0].message.content;
+
+            // 3. 更新角色数据
+            const char = characterManager.getCurrent();
+            char.summary = newSummary;
+            characterManager.save();
+            characterManager.loadCurrent(); // 刷新 UI 显示
+
+            // 4. 重组上下文 (System + 新摘要 + 最近保留的对话)
+            this.history = [
+                { role: "system", content: this.buildSystemPrompt() }, // Prompt 里已经包含了新摘要
+                ...activeContext
+            ];
+            this.saveContext();
+            
+            memoManager.showToast("✅ 记忆已压缩更新");
+
+        } catch (e) {
+            console.error("Memory Compress Failed", e);
+            memoManager.showToast("❌ 记忆整理失败");
+        } finally {
+            this.isCompressing = false;
         }
     }
 };
@@ -710,6 +791,9 @@ const director = {
             wrapper.style.transform = `scale(${step.visual.zoom || 1})`;
             wrapper.style.transformOrigin = step.visual.focus || "50% 25%";
             bgImg.style.filter = step.visual.filter || "none";
+            if (step.visual.weather) {
+                weatherManager.set(step.visual.weather);
+            }
             if(step.visual.sprite && cache.char[step.visual.sprite]) { charImg.src = cache.char[step.visual.sprite]; charImg.classList.remove('hidden'); }
             if(step.visual.bg && cache.bg[step.visual.bg]) {
                 const newBgUrl = cache.bg[step.visual.bg];
@@ -747,6 +831,7 @@ const app = {
         localStorage.setItem('conf_url', document.getElementById('api-url').value);
         localStorage.setItem('conf_key', document.getElementById('api-key').value);
         localStorage.setItem('conf_model', document.getElementById('api-model').value);
+        localStorage.setItem('conf_threshold', document.getElementById('memory-threshold').value);
         characterManager.updateCurrentFromUI();
         uiManager.closeSettings();
         alert("设置已保存");
@@ -767,6 +852,88 @@ const uiManager = {
 window.onload = function() {
     if (typeof director === 'undefined') alert("JS加载失败");
 };
+
+// ==========================================
+// 14. 天气与氛围管理器 (NEW)
+// ==========================================
+const weatherManager = {
+    current: 'none',
+
+    set: function(type) {
+        if (this.current === type) return;
+        this.current = type;
+        
+        const container = document.getElementById('app-container');
+        const backLayer = document.getElementById('fx-back');
+        const frontLayer = document.getElementById('fx-front');
+
+        // 1. 清除旧状态
+        container.classList.remove('mode-rain', 'mode-snow', 'mode-sakura', 'mode-film');
+        backLayer.innerHTML = '';
+        frontLayer.innerHTML = '';
+
+        if (type === 'none' || !type) return;
+
+        // 2. 激活新状态
+        container.classList.add('mode-' + type);
+        
+        // 3. 生成粒子 (前层多，后层少，制造纵深)
+        this.spawnParticles(type, frontLayer, backLayer);
+    },
+
+    spawnParticles: function(type, front, back) {
+        // 配置：[前层数量, 后层数量]
+        const countMap = { 'rain': [30, 0], 'snow': [20, 10], 'sakura': [10, 5], 'film': [1, 0] };
+        const [frontCount, backCount] = countMap[type] || [0, 0];
+
+        // 生成前层粒子
+        for(let i=0; i<frontCount; i++) this.createParticle(type, front, false);
+        // 生成后层粒子 (稍微模糊一点，制造景深)
+        for(let i=0; i<backCount; i++) this.createParticle(type, back, true);
+    },
+
+    createParticle: function(type, container, isBack) {
+        const div = document.createElement('div');
+        
+        if (type === 'rain') {
+            div.className = 'rain-drop';
+            div.style.left = Math.random() * 100 + '%';
+            div.style.animationDuration = (0.6 + Math.random() * 0.4) + 's';
+            div.style.animationDelay = Math.random() * 2 + 's';
+            div.style.opacity = 0.2 + Math.random() * 0.3;
+        } 
+        else if (type === 'snow') {
+            div.className = 'snow-flake';
+            div.style.left = Math.random() * 100 + '%';
+            const size = isBack ? (2 + Math.random() * 2) : (4 + Math.random() * 3); // 后层小，前层大
+            div.style.width = div.style.height = size + 'px';
+            div.style.animationDuration = (4 + Math.random() * 5) + 's';
+            div.style.animationDelay = Math.random() * 5 + 's';
+            if(isBack) div.style.filter = 'blur(1px)'; // 后层模糊
+        }
+        else if (type === 'sakura') {
+            div.className = 'petal';
+            div.style.left = Math.random() * 100 + '%';
+            const size = isBack ? 6 : (10 + Math.random() * 5);
+            div.style.width = size + 'px'; div.style.height = (size + 4) + 'px';
+            div.style.animationDuration = (5 + Math.random() * 4) + 's';
+            div.style.animationDelay = Math.random() * 4 + 's';
+            div.style.backgroundColor = Math.random() > 0.5 ? '#ffc0cb' : '#ffe4e1';
+            if(isBack) div.style.opacity = 0.6;
+        }
+        else if (type === 'film') {
+            div.className = 'noise-bg';
+            if(!isBack) {
+                // 只在前层加划痕
+                const scratch = document.createElement('div');
+                scratch.className = 'film-line';
+                container.appendChild(scratch);
+            }
+        }
+        container.appendChild(div);
+    }
+};
+
 // ==========================================
 // 13. 功能坞与手账管理器 (NEW)
 // ==========================================

@@ -20,12 +20,16 @@
             <div id="bg-placeholder" class="absolute inset-0 bg-[#0a0a0a] flex items-center justify-center text-[#333] text-xs tracking-[0.3em] font-serif">NO SIGNAL</div>
         </div>
 
+        <div id="fx-back" class="layer-fx-back pointer-events-none absolute inset-0 transition-opacity duration-1000"></div>
+
         <!-- 角色层 -->
         <div class="layer-char">
             <div id="char-wrapper">
                 <img id="char-img" src="" class="full-cover hidden breathing"> 
             </div>
         </div>
+
+        <div id="fx-front" class="layer-fx-front pointer-events-none absolute inset-0 z-[5]"></div>
 
         <!-- UI 层 -->
         <div class="layer-ui flex flex-col justify-between p-6">
@@ -155,6 +159,16 @@
                         <div class="flex gap-2"><select id="api-model" class="mono-input flex-1"></select><button onclick="aiEngine.fetchModels()" class="gold-btn-outline">测试连接</button></div>
                         <div id="brain-status" class="text-[10px] text-gray-500 mt-1 text-right">未连接</div>
                     </div>
+
+                     <div class="input-group border-t border-white/10 pt-4 mt-2">
+                        <label class="flex justify-between">
+                            <span>记忆压缩阈值 (轮数)</span>
+                            <span class="text-gray-500 text-[9px]">建议: 10~20</span>
+                        </label>
+                        <input type="number" id="memory-threshold" class="mono-input" value="20" min="4" placeholder="例如: 20">
+                        <p class="text-[9px] text-gray-600 mt-1">当对话记录超过此数量时，自动触发总结并清理旧记录。</p>
+                    </div>
+                    
                     <div class="border-t border-white/10 pt-4 mt-2">
                         <div class="flex justify-between items-center">
                             <label class="text-gray-400 text-xs">开启 3D 视差 (陀螺仪)</label>
@@ -180,6 +194,17 @@
                             <div class="input-group"><label>角色姓名</label><input type="text" id="persona-name" class="mono-input" autocomplete="off"></div>
                             <div class="input-group"><label>性格与背景描述</label><textarea id="persona-prompt" rows="6" class="mono-input"></textarea></div>
                         </div>
+
+                        <div class="input-group mt-4">
+                            <label class="text-[#D4AF37]">✦ 长期记忆 (Long-term Memory)</label>
+                            <textarea id="char-memory" rows="4" class="mono-input text-gray-400 italic" placeholder="系统会自动生成剧情摘要，你也可以手动修改..." onchange="characterManager.updateCurrentFromUI()"></textarea>
+                            <div class="flex justify-end mt-1">
+                                <button onclick="aiEngine.forceSummarize()" class="text-[9px] text-[#D4AF37] border border-[#D4AF37] px-2 py-1 hover:bg-[#D4AF37] hover:text-black transition">
+                                    <i class="ph ph-lightning"></i> 立即压缩当前记忆
+                                </button>
+                            </div>
+                        </div>
+
                         <div class="space-y-4">
                             <div class="section-title">你的设定 (玩家)</div>
                             <div class="input-group"><label>你的名字</label><input type="text" id="user-name" class="mono-input" autocomplete="off"></div>

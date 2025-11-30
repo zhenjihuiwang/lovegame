@@ -245,3 +245,73 @@ body { background-color: #000; overflow: hidden; font-family: "PingFang SC", "Mi
     opacity: 0; pointer-events: none; transition: all 0.3s; z-index: 300;
 }
 #toast-notification.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* =========================================
+   14. 沉浸式天气系统 (无雾版 + 双层架构)
+   ========================================= */
+
+/* 层级定义 */
+.layer-fx-back { z-index: 1; mix-blend-mode: overlay; } /* 混合模式让色调更自然 */
+.layer-fx-front { z-index: 5; } /* 位于 UI(10) 和 角色(2) 之间 */
+
+/* 通用过渡 */
+#bg-img { transition: filter 1.5s ease; } /* 让背景图变色更柔和 */
+
+/* ==== 1. RAIN (雨) ==== */
+/* 激活时的背景滤镜 */
+.mode-rain #bg-img { filter: brightness(0.7) grayscale(0.4) contrast(1.1); }
+.mode-rain #fx-back { background: rgba(0, 20, 40, 0.4); } /* 后层冷色调 */
+
+.rain-drop {
+    position: absolute; width: 1px; height: 120px;
+    background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0.3));
+    top: -120px; animation: rain-fall linear infinite;
+}
+@keyframes rain-fall { 0% { transform: translateY(0); } 100% { transform: translateY(120vh); } }
+
+/* ==== 2. SNOW (雪) ==== */
+.mode-snow #bg-img { filter: brightness(1.05) contrast(0.95); }
+.mode-snow #fx-back { background: rgba(220, 230, 255, 0.15); } /* 后层微冷白 */
+
+.snow-flake {
+    position: absolute; border-radius: 50%; background: #fff;
+    box-shadow: 0 0 4px rgba(255,255,255,0.8);
+    top: -10px; animation: snow-fall linear infinite;
+}
+@keyframes snow-fall {
+    0% { transform: translateY(0) translateX(0); opacity: 0; }
+    20% { opacity: 1; }
+    100% { transform: translateY(110vh) translateX(30px); opacity: 0.1; }
+}
+
+/* ==== 3. SAKURA (樱花) ==== */
+.mode-sakura #bg-img { filter: contrast(1.05) saturate(1.1); }
+.mode-sakura #fx-back { background: rgba(255, 192, 203, 0.1); } /* 后层暖粉 */
+
+.petal {
+    position: absolute; background: #ffc0cb;
+    border-radius: 10px 0px 10px 0px;
+    top: -20px; animation: petal-fall linear infinite;
+}
+@keyframes petal-fall {
+    0% { transform: translateY(0) rotate(0deg) translateX(0); opacity: 0; }
+    20% { opacity: 0.9; }
+    100% { transform: translateY(110vh) rotate(360deg) translateX(60px); opacity: 0; }
+}
+
+/* ==== 4. FILM (老电影) ==== */
+.mode-film #bg-img { filter: sepia(0.8) contrast(1.2) grayscale(0.2); }
+.mode-film #fx-back { background: rgba(50, 40, 30, 0.2); } /* 后层复古黄 */
+
+.noise-bg {
+    position: absolute; inset: 0;
+    /* 使用 SVG 噪点，轻量且高清 */
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='1'/%3E%3C/svg%3E");
+    opacity: 0.12; animation: noise-move 0.4s steps(5) infinite;
+}
+.film-line {
+    position: absolute; width: 1px; height: 100%; background: rgba(255,255,255,0.15);
+    left: 20%; animation: scratch-move 3s infinite;
+}
+@keyframes noise-move { 0% { transform: translate(0,0); } 100% { transform: translate(10px, 10px); } }
+@keyframes scratch-move { 0% { left: 5%; opacity: 0; } 30% { opacity: 0.4; } 60% {opacity:0;} 100% { left: 90%; opacity: 0; } }
