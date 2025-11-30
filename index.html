@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI Otome - Parallax</title>
+    <title>AI Otome - Tag Presets</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
@@ -14,18 +14,13 @@
         <audio id="audio-bgm" loop></audio> 
         <div id="sfx-container"></div>
 
-        <!-- 视觉层 -->
-        <!-- 增加 parallax-layer 类，用于JS控制 -->
-        <div class="layer-bg parallax-layer" data-depth="0.05">
-            <img id="bg-img" src="" class="full-cover transition-all duration-1000 scale-110"> <!-- 默认放大1.1倍防止黑边 -->
+        <div class="layer-bg">
+            <img id="bg-img" src="" class="full-cover transition-all duration-1000 scale-110">
             <div id="bg-placeholder" class="absolute inset-0 bg-[#0a0a0a] flex items-center justify-center text-[#333] text-xs tracking-[0.3em] font-serif">NO SIGNAL</div>
         </div>
 
-        <!-- 角色层 -->
-        <!-- 增加 parallax-layer 类，data-depth 控制移动幅度 -->
-        <div class="layer-char parallax-layer" data-depth="0.02">
+        <div class="layer-char">
             <div id="char-wrapper">
-                <!-- 呼吸动画加在 img 上 -->
                 <img id="char-img" src="" class="full-cover hidden breathing"> 
             </div>
         </div>
@@ -34,6 +29,9 @@
             <div class="flex justify-end pt-4 pointer-events-auto">
                 <button onclick="uiManager.openSettings()" class="text-white/50 hover:text-[#D4AF37] transition">
                     <i class="ph ph-list text-2xl"></i>
+                </button>
+                <button onclick="dockManager.toggle()" class="dock-trigger" title="功能菜单">
+                    <i class="ph ph-squares-four text-2xl"></i>
                 </button>
             </div>
 
@@ -71,7 +69,6 @@
             </div>
         </div>
 
-        <!-- 历史弹窗 -->
         <div id="history-modal" class="absolute inset-0 z-40 bg-[#0a0a0a]/95 backdrop-blur-md flex flex-col transition-opacity duration-300 opacity-0 pointer-events-none">
             <div class="p-8 border-b border-white/10 flex justify-between items-center">
                 <span class="text-[#D4AF37] text-xs tracking-[0.2em] font-serif">剧情记录</span>
@@ -83,18 +80,30 @@
             </div>
         </div>
 
-        <!-- 素材卡片 -->
+        <!-- 素材卡片 (已加入快捷标签栏) -->
         <div id="asset-modal" class="absolute inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center transition-opacity duration-200 opacity-0 pointer-events-none">
             <div class="asset-card" onclick="event.stopPropagation()">
                 <div id="asset-preview-area" class="w-full h-48 bg-[#111] flex items-center justify-center border-b border-white/10 relative overflow-hidden"></div>
-                <div class="p-6 space-y-5">
+                
+                <div class="p-6 space-y-4">
+                    <!-- 标签编辑区 -->
                     <div class="input-group">
-                        <label>TAG (标签)</label>
-                        <div class="flex items-center border-b border-white/30 pb-1">
-                            <i class="ph ph-tag text-gray-500 mr-2"></i>
+                        <label class="flex justify-between">
+                            <span>TAG (标签)</span>
+                            <span class="text-[9px] text-gray-500">点击下方添加</span>
+                        </label>
+                        <div class="flex items-center border-b border-white/30 pb-1 gap-2">
+                            <i class="ph ph-tag text-gray-500"></i>
                             <input type="text" id="edit-asset-tag" class="bg-transparent border-none text-white text-sm w-full focus:outline-none font-mono" autocomplete="off">
+                            <!-- 保存标签按钮 -->
+                            <button onclick="tagManager.addFromInput('edit-asset-tag')" class="text-[#D4AF37] hover:text-white text-xs"><i class="ph ph-plus"></i></button>
+                        </div>
+                        <!-- 快捷标签栏 -->
+                        <div id="edit-tag-bank" class="flex gap-2 mt-2 overflow-x-auto pb-1 scrollbar-hide h-8 items-center">
+                            <!-- JS 生成 -->
                         </div>
                     </div>
+
                     <div class="input-group">
                         <label>SCOPE (归属)</label>
                         <div class="flex gap-2 mt-2">
@@ -102,6 +111,7 @@
                             <button onclick="assetManager.setEditScope('local')" id="scope-btn-local" class="scope-chip"><i class="ph ph-user"></i> 角色专属</button>
                         </div>
                     </div>
+
                     <div class="flex gap-3 pt-2">
                         <button onclick="assetManager.deleteAsset()" class="flex-1 border border-red-900/50 text-red-700 hover:bg-red-900/20 py-2 text-xs tracking-widest transition">DELETE</button>
                         <button onclick="assetManager.saveChanges()" class="flex-[2] bg-[#D4AF37] text-black font-bold py-2 text-xs tracking-widest hover:opacity-90 transition">SAVE CHANGES</button>
@@ -135,18 +145,15 @@
                         <div class="flex gap-2"><select id="api-model" class="mono-input flex-1"></select><button onclick="aiEngine.fetchModels()" class="gold-btn-outline">测试连接</button></div>
                         <div id="brain-status" class="text-[10px] text-gray-500 mt-1 text-right">未连接</div>
                     </div>
-                    
-                    <!-- 新增：3D 视差开关 -->
                     <div class="border-t border-white/10 pt-4 mt-2">
                         <div class="flex justify-between items-center">
                             <label class="text-gray-400 text-xs">开启 3D 视差 (陀螺仪)</label>
-                            <!-- 自定义开关 UI -->
                             <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in" onclick="parallaxManager.toggle()">
                                 <input type="checkbox" id="gyro-toggle" class="absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer checked:right-0 right-5"/>
                                 <label for="gyro-toggle" class="block overflow-hidden h-5 rounded-full bg-gray-800 cursor-pointer border border-gray-600"></label>
                             </div>
                         </div>
-                        <p class="text-[9px] text-gray-600 mt-1">晃动手机以感受伪3D效果。iOS用户需在此授权。</p>
+                        <p class="text-[9px] text-gray-600 mt-1">晃动手机以感受伪3D效果。</p>
                     </div>
                 </div>
 
@@ -172,7 +179,7 @@
                     </div>
                 </div>
 
-                <!-- Tab 3: Assets -->
+                <!-- Tab 3: Assets (更新：加入标签库) -->
                 <div id="tab-assets" class="tab-content hidden flex flex-col h-full">
                     <div class="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
                         <button onclick="assetManager.filter('all')" class="filter-chip active" data-filter="all">全部</button>
@@ -180,14 +187,50 @@
                         <button onclick="assetManager.filter('bg')" class="filter-chip" data-filter="bg">背景</button>
                         <button onclick="assetManager.filter('audio')" class="filter-chip" data-filter="audio">音频</button>
                     </div>
+                    
+                    <!-- 搜索与上传 -->
                     <div class="flex gap-2 mb-4">
                         <div class="flex-1 relative">
                             <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs"></i>
-                            <input type="text" id="asset-search" placeholder="搜索标签..." class="w-full bg-[#111] border border-white/10 text-white text-xs py-2 pl-8 pr-2 focus:border-[#D4AF37] outline-none transition" oninput="assetManager.refreshCache()">
+                            <input type="text" id="asset-search" placeholder="搜索素材..." class="w-full bg-[#111] border border-white/10 text-white text-xs py-2 pl-8 pr-2 focus:border-[#D4AF37] outline-none transition" oninput="assetManager.refreshCache()">
                         </div>
-                        <button onclick="document.getElementById('upload-file').click()" class="bg-[#D4AF37] text-black px-3 py-2 text-xs font-bold hover:opacity-90 flex items-center gap-1"><i class="ph ph-upload-simple"></i> 上传</button>
-                        <input type="file" id="upload-file" class="hidden" onchange="assetManager.handleQuickUpload(this)">
                     </div>
+
+                    <!-- 上传区域 (增强版) -->
+                    <div class="border border-white/10 p-4 mb-4">
+                        <div class="grid grid-cols-2 gap-2 mb-2">
+                            <select id="upload-type" class="mono-input">
+                                <option value="char">立绘</option>
+                                <option value="bg">背景</option>
+                                <option value="bgm">BGM</option>
+                                <option value="sfx">音效</option>
+                            </select>
+                            <div class="relative flex items-center">
+                                <input type="text" id="upload-tag" placeholder="标签名..." class="mono-input pr-8" autocomplete="off">
+                                <!-- 保存标签按钮 -->
+                                <button onclick="tagManager.addFromInput('upload-tag')" class="absolute right-2 text-[#D4AF37] hover:text-white" title="存为常用标签">
+                                    <i class="ph ph-plus-circle"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- 常用标签栏 -->
+                        <div id="upload-tag-bank" class="flex gap-2 mb-3 overflow-x-auto pb-1 scrollbar-hide h-8 items-center">
+                            <!-- JS 动态生成 -->
+                        </div>
+
+                        <div class="flex items-center justify-between gap-2 mb-3">
+                            <div class="flex items-center gap-2 cursor-pointer" onclick="document.getElementById('upload-exclusive').click()">
+                                <input type="checkbox" id="upload-exclusive" class="accent-[#D4AF37]">
+                                <label for="upload-exclusive" class="text-[10px] text-gray-400 cursor-pointer select-none">专属</label>
+                            </div>
+                            <button onclick="document.getElementById('upload-file').click()" class="bg-[#D4AF37] text-black px-4 py-1 text-xs font-bold hover:opacity-90 flex items-center gap-1">
+                                <i class="ph ph-upload-simple"></i> 上传文件
+                            </button>
+                            <input type="file" id="upload-file" class="hidden" onchange="assetManager.handleQuickUpload(this)">
+                        </div>
+                    </div>
+
                     <div id="assets-list" class="flex-1 overflow-y-auto grid grid-cols-3 gap-3 content-start pr-1 pb-10"></div>
                 </div>
 
@@ -210,6 +253,46 @@
             <div class="text-gray-600 text-[10px] tracking-[0.5em] uppercase">点击唤醒</div>
         </div>
     </div>
-    <script src="js/script.js"></script>
+    <script src="script.js"></script>
+    <!-- 侧边功能坞 -->
+    <div id="dock-panel" onclick="dockManager.close()">
+        <div class="dock-content" onclick="event.stopPropagation()">
+            <!-- 头部 -->
+            <div class="p-6 border-b border-white/10 flex justify-between items-center">
+                <span class="text-[#D4AF37] text-xs tracking-[0.2em] font-serif italic">MODULES</span>
+                <button onclick="dockManager.close()" class="text-gray-500 hover:text-white"><i class="ph ph-x text-lg"></i></button>
+            </div>
+            
+            <!-- App 列表 -->
+            <div id="dock-home" class="app-grid">
+                <div class="app-icon" onclick="memoManager.open()">
+                    <div class="app-icon-box"><i class="ph ph-notebook"></i></div>
+                    <span class="app-name">手账</span>
+                </div>
+                <!-- 预留位置，以后可以在这里加手机、音乐等 -->
+                <div class="app-icon" style="opacity:0.3; cursor:default">
+                    <div class="app-icon-box border-dashed border-gray-700"><i class="ph ph-device-mobile"></i></div>
+                    <span class="app-name">WIP</span>
+                </div>
+            </div>
+
+            <!-- 手账 APP 界面 (默认隐藏) -->
+            <div id="app-memo" class="app-window hidden">
+                <div class="p-4 border-b border-white/10 flex items-center gap-3 bg-[#111]">
+                    <button onclick="dockManager.showHome()" class="text-gray-500 hover:text-white"><i class="ph ph-caret-left"></i></button>
+                    <span class="text-xs text-white tracking-widest">MEMORY LOG</span>
+                </div>
+                <div id="memo-container" class="memo-list scrollbar-hide">
+                    <!-- JS 动态生成手账内容 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 顶部通知 Toast -->
+    <div id="toast-notification">
+        <i class="ph ph-pen-nib toast-icon"></i>
+        <span id="toast-msg" class="toast-text">记录已更新</span>
+    </div>
 </body>
 </html>
