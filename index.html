@@ -3,26 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI Otome - Director Mode</title>
+    <title>AI Otome - Parallax</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;500;700&family=Inter:wght@300;400&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
     <div id="app-container">
         <audio id="audio-bgm" loop></audio> 
-        <audio id="audio-sfx" loop></audio>
+        <div id="sfx-container"></div>
 
-        <div class="layer-bg">
-            <img id="bg-img" src="" class="full-cover transition-all duration-1000">
+        <!-- 视觉层 -->
+        <!-- 增加 parallax-layer 类，用于JS控制 -->
+        <div class="layer-bg parallax-layer" data-depth="0.05">
+            <img id="bg-img" src="" class="full-cover transition-all duration-1000 scale-110"> <!-- 默认放大1.1倍防止黑边 -->
             <div id="bg-placeholder" class="absolute inset-0 bg-[#0a0a0a] flex items-center justify-center text-[#333] text-xs tracking-[0.3em] font-serif">NO SIGNAL</div>
         </div>
 
-        <div class="layer-char">
+        <!-- 角色层 -->
+        <!-- 增加 parallax-layer 类，data-depth 控制移动幅度 -->
+        <div class="layer-char parallax-layer" data-depth="0.02">
             <div id="char-wrapper">
-                <img id="char-img" src="" class="full-cover hidden"> 
+                <!-- 呼吸动画加在 img 上 -->
+                <img id="char-img" src="" class="full-cover hidden breathing"> 
             </div>
         </div>
 
@@ -52,101 +56,158 @@
 
                 <div class="flex items-end gap-4 pointer-events-auto border-b border-white/20 pb-2 transition-colors focus-within:border-[#D4AF37]">
                     <button id="mode-btn" onclick="aiEngine.toggleMode()" class="text-[10px] tracking-widest uppercase mb-1 font-sans text-[#D4AF37] hover:text-white transition w-16 text-left">
-                        DIALOGUE
+                        对话模式
                     </button>
-                    <input type="text" id="user-input" placeholder="..." 
+                    <input type="text" id="user-input" placeholder="..." autocomplete="off"
                            class="flex-1 bg-transparent border-none text-white text-sm font-serif focus:outline-none placeholder-gray-700"
                            onkeypress="if(event.keyCode==13) aiEngine.queueInput()">
-                    <button onclick="aiEngine.queueInput()" id="send-btn" class="text-white/50 hover:text-white transition" title="Add to Script">
+                    <button onclick="aiEngine.queueInput()" id="send-btn" class="text-white/50 hover:text-white transition" title="存入剧本">
                         <i class="ph ph-plus text-xl"></i>
                     </button>
-                    <button onclick="aiEngine.triggerResponse()" id="trigger-btn" class="text-[#D4AF37] hover:text-white transition animate-pulse-slow" title="Action!">
+                    <button onclick="aiEngine.triggerResponse()" id="trigger-btn" class="text-[#D4AF37] hover:text-white transition animate-pulse-slow" title="生成回复">
                         <i class="ph ph-sparkle text-xl"></i>
                     </button>
                 </div>
             </div>
         </div>
 
+        <!-- 历史弹窗 -->
         <div id="history-modal" class="absolute inset-0 z-40 bg-[#0a0a0a]/95 backdrop-blur-md flex flex-col transition-opacity duration-300 opacity-0 pointer-events-none">
             <div class="p-8 border-b border-white/10 flex justify-between items-center">
-                <span class="text-[#D4AF37] text-xs tracking-[0.2em] font-serif">DIALOGUE LOG</span>
+                <span class="text-[#D4AF37] text-xs tracking-[0.2em] font-serif">剧情记录</span>
                 <button onclick="historyManager.hide()" class="text-gray-500 hover:text-white"><i class="ph ph-x text-xl"></i></button>
             </div>
             <div id="history-list" class="flex-1 overflow-y-auto p-8 space-y-6 scrollbar-hide"></div>
             <div class="p-4 border-t border-white/10 text-center">
-                <button onclick="historyManager.clear()" class="text-[10px] text-red-900 hover:text-red-500 tracking-widest uppercase transition">CLEAR ALL HISTORY</button>
+                <button onclick="historyManager.clear()" class="text-[10px] text-red-900 hover:text-red-500 tracking-widest uppercase transition">清空当前记录</button>
+            </div>
+        </div>
+
+        <!-- 素材卡片 -->
+        <div id="asset-modal" class="absolute inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center transition-opacity duration-200 opacity-0 pointer-events-none">
+            <div class="asset-card" onclick="event.stopPropagation()">
+                <div id="asset-preview-area" class="w-full h-48 bg-[#111] flex items-center justify-center border-b border-white/10 relative overflow-hidden"></div>
+                <div class="p-6 space-y-5">
+                    <div class="input-group">
+                        <label>TAG (标签)</label>
+                        <div class="flex items-center border-b border-white/30 pb-1">
+                            <i class="ph ph-tag text-gray-500 mr-2"></i>
+                            <input type="text" id="edit-asset-tag" class="bg-transparent border-none text-white text-sm w-full focus:outline-none font-mono" autocomplete="off">
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label>SCOPE (归属)</label>
+                        <div class="flex gap-2 mt-2">
+                            <button onclick="assetManager.setEditScope('global')" id="scope-btn-global" class="scope-chip"><i class="ph ph-globe"></i> 全局通用</button>
+                            <button onclick="assetManager.setEditScope('local')" id="scope-btn-local" class="scope-chip"><i class="ph ph-user"></i> 角色专属</button>
+                        </div>
+                    </div>
+                    <div class="flex gap-3 pt-2">
+                        <button onclick="assetManager.deleteAsset()" class="flex-1 border border-red-900/50 text-red-700 hover:bg-red-900/20 py-2 text-xs tracking-widest transition">DELETE</button>
+                        <button onclick="assetManager.saveChanges()" class="flex-[2] bg-[#D4AF37] text-black font-bold py-2 text-xs tracking-widest hover:opacity-90 transition">SAVE CHANGES</button>
+                    </div>
+                </div>
+                <button onclick="assetManager.closeModal()" class="absolute top-2 right-2 text-white/50 hover:text-white bg-black/50 rounded-full p-1"><i class="ph ph-x"></i></button>
             </div>
         </div>
 
         <!-- 设置面板 -->
         <div id="settings-modal" class="absolute inset-0 z-50 bg-[#050505] transition-transform duration-300 translate-y-full flex flex-col">
             <div class="flex justify-between items-center p-6 border-b border-white/10">
-                <h2 class="text-[#D4AF37] text-lg font-serif italic">Configuration</h2>
+                <h2 class="text-[#D4AF37] text-lg font-serif italic">系统配置</h2>
                 <button onclick="uiManager.closeSettings()" class="text-gray-500 hover:text-white"><i class="ph ph-x text-2xl"></i></button>
             </div>
 
             <div class="flex px-6 pt-6 gap-6 border-b border-white/5 overflow-x-auto scrollbar-hide">
-                <button onclick="uiManager.switchTab('brain')" class="tab-btn active" data-tab="brain">BRAIN</button>
-                <button onclick="uiManager.switchTab('persona')" class="tab-btn" data-tab="persona">PERSONA</button>
-                <button onclick="uiManager.switchTab('assets')" class="tab-btn" data-tab="assets">ASSETS</button>
-                <button onclick="uiManager.switchTab('data')" class="tab-btn" data-tab="data">DATA</button>
+                <button onclick="uiManager.switchTab('brain')" class="tab-btn active" data-tab="brain">大脑</button>
+                <button onclick="uiManager.switchTab('persona')" class="tab-btn" data-tab="persona">人设</button>
+                <button onclick="uiManager.switchTab('assets')" class="tab-btn" data-tab="assets">素材</button>
+                <button onclick="uiManager.switchTab('data')" class="tab-btn" data-tab="data">数据</button>
             </div>
 
             <div class="flex-1 overflow-y-auto p-6 scrollbar-hide font-sans">
                 <!-- Tab 1: Brain -->
                 <div id="tab-brain" class="tab-content space-y-6">
-                    <div class="input-group"><label>API URL</label><input type="text" id="api-url" class="mono-input"></div>
-                    <div class="input-group"><label>API KEY</label><input type="password" id="api-key" class="mono-input"></div>
+                    <div class="input-group"><label>API 地址 (URL)</label><input type="text" id="api-url" class="mono-input" autocomplete="off"></div>
+                    <div class="input-group"><label>API 密钥 (KEY)</label><input type="text" id="api-key" class="mono-input" autocomplete="off"></div>
                     <div class="input-group">
-                        <label>MODEL</label>
-                        <div class="flex gap-2"><select id="api-model" class="mono-input flex-1"></select><button onclick="aiEngine.fetchModels()" class="gold-btn-outline">TEST</button></div>
-                        <div id="brain-status" class="text-[10px] text-gray-500 mt-1 text-right">DISCONNECTED</div>
+                        <label>模型选择</label>
+                        <div class="flex gap-2"><select id="api-model" class="mono-input flex-1"></select><button onclick="aiEngine.fetchModels()" class="gold-btn-outline">测试连接</button></div>
+                        <div id="brain-status" class="text-[10px] text-gray-500 mt-1 text-right">未连接</div>
+                    </div>
+                    
+                    <!-- 新增：3D 视差开关 -->
+                    <div class="border-t border-white/10 pt-4 mt-2">
+                        <div class="flex justify-between items-center">
+                            <label class="text-gray-400 text-xs">开启 3D 视差 (陀螺仪)</label>
+                            <!-- 自定义开关 UI -->
+                            <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in" onclick="parallaxManager.toggle()">
+                                <input type="checkbox" id="gyro-toggle" class="absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer checked:right-0 right-5"/>
+                                <label for="gyro-toggle" class="block overflow-hidden h-5 rounded-full bg-gray-800 cursor-pointer border border-gray-600"></label>
+                            </div>
+                        </div>
+                        <p class="text-[9px] text-gray-600 mt-1">晃动手机以感受伪3D效果。iOS用户需在此授权。</p>
                     </div>
                 </div>
 
-                <!-- Tab 2: Persona (更新：增加用户和关系设定) -->
-                <div id="tab-persona" class="tab-content hidden space-y-8">
-                    <!-- 角色设定区 -->
-                    <div class="space-y-4">
-                        <div class="section-title">THE CHARACTER</div>
-                        <div class="input-group"><label>NAME</label><input type="text" id="persona-name" class="mono-input" placeholder="e.g. Li Zeyan"></div>
-                        <div class="input-group"><label>DESCRIPTION & PERSONALITY</label><textarea id="persona-prompt" rows="6" class="mono-input" placeholder="Character's background, traits..."></textarea></div>
+                <!-- Tab 2: Persona -->
+                <div id="tab-persona" class="tab-content hidden flex flex-col h-full">
+                    <div class="mb-6">
+                        <label class="block font-inter text-[9px] text-[#666] tracking-widest mb-3">当前角色</label>
+                        <div id="char-list" class="flex gap-3 overflow-x-auto pb-2 scrollbar-hide"></div>
+                        <button onclick="characterManager.createNew()" class="mt-2 text-[10px] text-[#D4AF37] border-b border-[#D4AF37] pb-1 hover:text-white hover:border-white transition">+ 新建角色</button>
                     </div>
-
-                    <!-- 用户设定区 -->
-                    <div class="space-y-4">
-                        <div class="section-title">THE PLAYER (YOU)</div>
-                        <div class="input-group"><label>YOUR NAME</label><input type="text" id="user-name" class="mono-input" placeholder="e.g. MC"></div>
-                        <div class="input-group"><label>YOUR DESCRIPTION</label><textarea id="user-desc" rows="3" class="mono-input" placeholder="Your appearance, personality..."></textarea></div>
-                        <div class="input-group"><label>RELATIONSHIP</label><input type="text" id="user-relation" class="mono-input" placeholder="e.g. Childhood friends, Lovers..."></div>
+                    <div class="space-y-8 flex-1 overflow-y-auto pr-2">
+                        <div class="space-y-4">
+                            <div class="section-title flex justify-between"><span>角色设定</span><button onclick="characterManager.deleteCurrent()" class="text-[9px] text-red-800 hover:text-red-500">删除角色</button></div>
+                            <div class="input-group"><label>角色姓名</label><input type="text" id="persona-name" class="mono-input" autocomplete="off"></div>
+                            <div class="input-group"><label>性格与背景描述</label><textarea id="persona-prompt" rows="6" class="mono-input"></textarea></div>
+                        </div>
+                        <div class="space-y-4">
+                            <div class="section-title">你的设定 (玩家)</div>
+                            <div class="input-group"><label>你的名字</label><input type="text" id="user-name" class="mono-input" autocomplete="off"></div>
+                            <div class="input-group"><label>你的外貌/性格描述</label><textarea id="user-desc" rows="3" class="mono-input"></textarea></div>
+                            <div class="input-group"><label>你们的关系</label><input type="text" id="user-relation" class="mono-input" autocomplete="off"></div>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Tab 3: Assets -->
-                <div id="tab-assets" class="tab-content hidden space-y-6">
-                    <div class="border border-white/10 p-4">
-                        <div class="grid grid-cols-2 gap-2 mb-2"><select id="upload-type" class="mono-input"><option value="char">Sprite</option><option value="bg">Background</option><option value="audio">Audio</option></select><input type="text" id="upload-tag" placeholder="Tag ID" class="mono-input"></div>
-                        <input type="file" id="upload-file" class="text-xs text-gray-500 mb-2"><button onclick="assetManager.handleUpload()" class="gold-btn w-full">UPLOAD</button>
+                <div id="tab-assets" class="tab-content hidden flex flex-col h-full">
+                    <div class="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
+                        <button onclick="assetManager.filter('all')" class="filter-chip active" data-filter="all">全部</button>
+                        <button onclick="assetManager.filter('char')" class="filter-chip" data-filter="char">立绘</button>
+                        <button onclick="assetManager.filter('bg')" class="filter-chip" data-filter="bg">背景</button>
+                        <button onclick="assetManager.filter('audio')" class="filter-chip" data-filter="audio">音频</button>
                     </div>
-                    <div id="assets-list" class="grid grid-cols-3 gap-2"></div>
+                    <div class="flex gap-2 mb-4">
+                        <div class="flex-1 relative">
+                            <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs"></i>
+                            <input type="text" id="asset-search" placeholder="搜索标签..." class="w-full bg-[#111] border border-white/10 text-white text-xs py-2 pl-8 pr-2 focus:border-[#D4AF37] outline-none transition" oninput="assetManager.refreshCache()">
+                        </div>
+                        <button onclick="document.getElementById('upload-file').click()" class="bg-[#D4AF37] text-black px-3 py-2 text-xs font-bold hover:opacity-90 flex items-center gap-1"><i class="ph ph-upload-simple"></i> 上传</button>
+                        <input type="file" id="upload-file" class="hidden" onchange="assetManager.handleQuickUpload(this)">
+                    </div>
+                    <div id="assets-list" class="flex-1 overflow-y-auto grid grid-cols-3 gap-3 content-start pr-1 pb-10"></div>
                 </div>
 
                 <!-- Tab 4: Data -->
                 <div id="tab-data" class="tab-content hidden space-y-6">
                     <div class="border border-white/10 p-6 flex flex-col gap-4">
-                        <p class="text-[10px] text-gray-500 uppercase tracking-widest mb-2">BACKUP & RESTORE</p>
-                        <button onclick="dataManager.backup()" class="gold-btn-outline py-3 flex items-center justify-center gap-2">EXPORT BACKUP</button>
-                        <div class="relative"><button onclick="document.getElementById('restore-file').click()" class="gold-btn-outline py-3 w-full flex items-center justify-center gap-2 border-white/30 text-gray-400 hover:text-white hover:border-white">RESTORE BACKUP</button><input type="file" id="restore-file" class="hidden" onchange="dataManager.restore(this)"></div>
+                        <p class="text-[10px] text-gray-500 uppercase tracking-widest mb-2">备份与恢复</p>
+                        <button onclick="dataManager.backup()" class="gold-btn-outline py-3 flex items-center justify-center gap-2">导出备份文件 (.json)</button>
+                        <div class="relative"><button onclick="document.getElementById('restore-file').click()" class="gold-btn-outline py-3 w-full flex items-center justify-center gap-2 border-white/30 text-gray-400 hover:text-white hover:border-white">恢复备份文件</button><input type="file" id="restore-file" class="hidden" onchange="dataManager.restore(this)"></div>
+                        <div class="border-t border-white/10 mt-4 pt-4"><button onclick="characterManager.resetMemory()" class="text-[10px] text-red-900 hover:text-red-500 w-full text-left">重置当前角色记忆</button></div>
                     </div>
                 </div>
             </div>
 
-            <div class="p-6 border-t border-white/10"><button onclick="app.saveAllSettings()" class="gold-btn w-full py-3">SAVE SYSTEM</button></div>
+            <div class="p-6 border-t border-white/10"><button onclick="app.saveAllSettings()" class="gold-btn w-full py-3">保存设置</button></div>
         </div>
 
         <div id="start-overlay" class="layer-overlay bg-[#050505]" onclick="app.start()">
-            <div class="text-[#D4AF37] text-3xl font-serif italic tracking-widest mb-4">Prologue</div>
-            <div class="text-gray-600 text-[10px] tracking-[0.5em] uppercase">Touch to Resume</div>
+            <div class="text-[#D4AF37] text-3xl font-serif italic tracking-widest mb-4">Wake Up</div>
+            <div class="text-gray-600 text-[10px] tracking-[0.5em] uppercase">点击唤醒</div>
         </div>
     </div>
     <script src="js/script.js"></script>
