@@ -891,25 +891,28 @@ const journalManager = {
     selectedDate: new Date().toLocaleDateString('sv-SE'),
 
     open: function() {
-        // ... (此函数保持不变)
         const modal = document.getElementById('journal-modal');
         modal.classList.remove('invisible', 'opacity-0');
         modal.classList.add('modal-open');
+        modal.style.pointerEvents = 'auto'; // 确保父容器可点击
+
         const char = characterManager.getCurrent();
         const dates = Object.keys(char.journal || {}).sort().reverse();
         const latestDate = dates[0] || new Date().toLocaleDateString('sv-SE');
+        
         this.selectedDate = latestDate;
         this.calendarDate = new Date(latestDate.replace(/-/g, '/'));
+        
         this.renderTimeline();
         this.loadEntry(this.selectedDate);
-        this.switchView('diary');
+        this.switchView('diary'); // 默认显示日记
     },
     
     close: function() {
-        // ... (此函数保持不变)
         const modal = document.getElementById('journal-modal');
         modal.classList.remove('modal-open');
         modal.classList.add('opacity-0');
+        modal.style.pointerEvents = 'none';
         setTimeout(() => modal.classList.add('invisible'), 300);
         this.toggleSidebar(false);
         if(!document.getElementById('char-memory').classList.contains('hidden')) {
@@ -921,6 +924,7 @@ const journalManager = {
     loadEntry: function(dateStr) {
         if (!dateStr) return;
         this.selectedDate = dateStr;
+        this.renderTimeline(); // 重新渲染时间轴以高亮当前选项
         document.getElementById('journal-date-display').innerText = dateStr;
         
         const char = characterManager.getCurrent();
@@ -946,12 +950,10 @@ const journalManager = {
             document.getElementById('noir-body').innerHTML = '';
         }
 
-        this.renderDiaryActions(!!entry); // 根据是否存在日记来渲染
+        this.renderDiaryActions(!!entry);
         this.renderComments(entry ? entry.comments : null);
     },
-
-    // ======== 新增功能区 ========
-
+    
     // [新增] 渲染日记末尾的操作区
     renderDiaryActions: function(hasDiary) {
         const footer = document.getElementById('diary-actions-footer');
@@ -987,7 +989,6 @@ const journalManager = {
             }
             thread.appendChild(bubble);
         });
-        // 滚动到底部
         thread.scrollTop = thread.scrollHeight;
     },
 
@@ -1027,7 +1028,7 @@ const journalManager = {
             char.journal[this.selectedDate].comments = []; // 刷新或新生成后，清空旧评论
 
             characterManager.save();
-            this.loadEntry(this.selectedDate); // 重新加载以显示新内容
+            this.loadEntry(this.selectedDate); 
             memoManager.showToast('✅ 他的思绪已更新');
 
         } catch(e) {
@@ -1053,13 +1054,11 @@ const journalManager = {
         const entry = char.journal[this.selectedDate];
         if (!entry.comments) entry.comments = [];
 
-        // 1. 立即显示用户评论 (Optimistic UI)
         entry.comments.push({ role: 'user', text: userComment });
         characterManager.save();
         this.renderComments(entry.comments);
         textarea.value = '';
 
-        // 2. 显示加载中的气泡
         const thread = document.getElementById('comment-thread');
         const loadingBubble = document.createElement('div');
         loadingBubble.className = 'comment-bubble character-reply reply-loading';
@@ -1067,7 +1066,6 @@ const journalManager = {
         thread.appendChild(loadingBubble);
         thread.scrollTop = thread.scrollHeight;
 
-        // 3. 构建AI请求
         const prompt = `你正在与玩家回顾你过去的一篇日记。\n\n[这是你当时写的日记原文]\n"""\n${entry.diary}\n"""\n\n[这是玩家刚刚对这篇日记发表的评论]\n"""\n${userComment}\n"""\n\n任务：请完全沉浸在你的角色（${char.name}）中，以第一人称视角，自然地回复这条评论。你的回复需要与日记内容和玩家评论都紧密相关。请直接输出回复内容，不要包含任何额外的前缀或格式。`;
         
         try {
@@ -1080,10 +1078,9 @@ const journalManager = {
             const data = await res.json();
             const replyText = data.choices[0].message.content;
 
-            // 4. 保存并显示AI回复
             entry.comments.push({ role: 'assistant', text: replyText });
             characterManager.save();
-            this.renderComments(entry.comments); // 重新渲染，会替换掉loading气泡
+            this.renderComments(entry.comments);
 
         } catch (e) {
             console.error("Comment reply failed:", e);
@@ -1094,21 +1091,201 @@ const journalManager = {
         }
     },
 
-    // ======== 现有功能保留 ========
-    calendarDate: new Date(),
-    selectedDate: new Date().toLocaleDateString('sv-SE'),
-    showCalendar: function() { /* ... */ },
-    hideCalendar: function() { /* ... */ },
-    changeMonth: function(offset) { /* ... */ },
-    renderCalendar: async function() { /* ... */ },
-    switchView: function(type) { /* ... */ },
-    toggleSidebar: function(show) { /* ... */ },
-    renderTimeline: function() { /* ... */ },
-    toggleMemoryEdit: function() { /* ... */ },
-    renderMemoryCore: function() { /* ... */ },
-    createMemoryNode: function(container, date, htmlContent) { /* ... */ },
-    checkDailySettlement: async function() { /* ... */ },
-    generateDailyEntry: async function(dateStr, chatLogs) { /* ... */ }
+    // ======== 【已修复】现有功能 ========
+    showCalendar: function() {
+        const modal = document.getElementById('calendar-modal');
+        modal.classList.remove('invisible', 'opacity-0', 'pointer-events-none');
+        modal.classList.add('modal-open');
+        this.renderCalendar();
+    },
+
+    hideCalendar: function() {
+        const modal = document.getElementById('calendar-modal');
+        modal.classList.remove('modal-open');
+        modal.classList.add('opacity-0');
+        setTimeout(() => {
+            modal.classList.add('invisible', 'pointer-events-none');
+        }, 200);
+    },
+
+    changeMonth: function(offset) {
+        this.calendarDate.setMonth(this.calendarDate.getMonth() + offset);
+        this.renderCalendar();
+    },
+
+    renderCalendar: async function() {
+        const grid = document.querySelector('.calendar-grid');
+        const monthDisplay = document.getElementById('calendar-month-display');
+        
+        // 清空除了星期标题以外的所有内容
+        while(grid.children.length > 7) {
+            grid.removeChild(grid.lastChild);
+        }
+
+        const year = this.calendarDate.getFullYear();
+        const month = this.calendarDate.getMonth();
+        monthDisplay.innerText = `${this.calendarDate.toLocaleString('en-US', { month: 'short' }).toUpperCase()} ${year}`;
+
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+        const char = characterManager.getCurrent();
+        const journalDates = new Set(Object.keys(char.journal || {}));
+        const memoryDates = new Set();
+        (char.summary || "").split('[').forEach(part => {
+            if (part.startsWith('20')) {
+                const dateMatch = part.match(/^\d{4}-\d{2}-\d{2}/);
+                if (dateMatch) memoryDates.add(dateMatch[0]);
+            }
+        });
+        
+        for (let i = 0; i < firstDay; i++) {
+            grid.innerHTML += `<div class="day-cell other-month"></div>`;
+        }
+
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const cell = document.createElement('div');
+            cell.className = 'day-cell';
+            
+            let indicators = '<div class="day-indicators">';
+            if (journalDates.has(dateStr)) indicators += '<div class="dot dot-diary"></div>';
+            if (memoryDates.has(dateStr)) indicators += '<div class="dot dot-memory"></div>';
+            indicators += '</div>';
+
+            cell.innerHTML = `<span class="day-number">${day}</span>${indicators}`;
+            
+            if (dateStr === this.selectedDate) cell.classList.add('selected');
+            
+            const today = new Date();
+            if (year === today.getFullYear() && month === today.getMonth() && day === today.getDate()) {
+                cell.classList.add('today');
+            }
+
+            cell.onclick = () => {
+                this.loadEntry(dateStr);
+                this.hideCalendar();
+            };
+            grid.appendChild(cell);
+        }
+    },
+
+    switchView: function(type) {
+        const memView = document.getElementById('view-memory');
+        const diaryView = document.getElementById('view-diary');
+        const memBtn = document.getElementById('btn-view-memory');
+        const diaryBtn = document.getElementById('btn-view-diary');
+
+        if (type === 'memory') {
+            memView.classList.remove('view-hidden');
+            memView.classList.add('view-active');
+            diaryView.classList.remove('view-active');
+            diaryView.classList.add('view-hidden');
+            
+            memBtn.classList.add('active-switch');
+            diaryBtn.classList.remove('active-switch');
+            
+            this.renderMemoryCore();
+        } else {
+            diaryView.classList.remove('view-hidden');
+            diaryView.classList.add('view-active');
+            memView.classList.remove('view-active');
+            memView.classList.add('view-hidden');
+            
+            diaryBtn.classList.add('active-switch');
+            memBtn.classList.remove('active-switch');
+        }
+    },
+    
+    toggleSidebar: function(show) {
+        const sidebar = document.getElementById('journal-sidebar');
+        const backdrop = document.getElementById('journal-backdrop');
+        if (show) {
+            sidebar.classList.remove('-translate-x-full');
+            backdrop.classList.remove('opacity-0', 'pointer-events-none');
+        } else {
+            sidebar.classList.add('-translate-x-full');
+            backdrop.classList.add('opacity-0', 'pointer-events-none');
+        }
+    },
+
+    renderTimeline: function() {
+        const container = document.getElementById('journal-timeline');
+        container.innerHTML = '';
+        const char = characterManager.getCurrent();
+        const journalEntries = char.journal || {};
+        
+        const dates = Object.keys(journalEntries).sort((a,b) => new Date(b) - new Date(a));
+
+        if(dates.length === 0) {
+            container.innerHTML = '<p class="text-xs text-gray-600 text-center">还没有任何日记...</p>';
+            return;
+        }
+
+        dates.forEach(dateStr => {
+            const entry = journalEntries[dateStr];
+            const item = document.createElement('div');
+            item.className = 'timeline-item';
+            if (dateStr === this.selectedDate) {
+                item.classList.add('active');
+            }
+            item.innerHTML = `
+                <div class="timeline-date">${dateStr}</div>
+                <div class="timeline-title">${entry.title}</div>
+            `;
+            item.onclick = () => this.loadEntry(dateStr);
+            container.appendChild(item);
+        });
+    },
+    
+    toggleMemoryEdit: function() {
+        const textarea = document.getElementById('char-memory');
+        const view = document.getElementById('memory-timeline-view');
+        textarea.classList.toggle('hidden');
+        view.classList.toggle('hidden');
+    },
+    
+    renderMemoryCore: function() {
+        const container = document.getElementById('memory-timeline-view');
+        container.innerHTML = '';
+        const char = characterManager.getCurrent();
+        const summary = char.summary || "核心记忆为空。";
+
+        document.getElementById('mem-usage-display').innerText = `${summary.length} chars`;
+
+        const memories = summary.split(/(?=\[\d{4}-\d{2}-\d{2}\])/g);
+
+        if (memories.length === 0 || summary === "核心记忆为空。") {
+            container.innerHTML = `<p class="text-sm text-gray-500">${summary}</p>`;
+            return;
+        }
+
+        memories.forEach(mem => {
+            if (mem.trim() === '') return;
+            const dateMatch = mem.match(/\[(\d{4}-\d{2}-\d{2})\]/);
+            const date = dateMatch ? dateMatch[1] : '未知日期';
+            const content = mem.replace(/\[\d{4}-\d{2}-\d{2}\]\s*/, '');
+            this.createMemoryNode(container, date, `<p class="mem-text">${content}</p>`);
+        });
+    },
+    
+    createMemoryNode: function(container, date, htmlContent) {
+        const node = document.createElement('div');
+        node.className = 'mem-node';
+        node.innerHTML = `
+            <div class="mem-date">${date}</div>
+            ${htmlContent}
+        `;
+        container.appendChild(node);
+    },
+    
+    checkDailySettlement: async function() {
+        // ... (此函数保持不变)
+    },
+    
+    generateDailyEntry: async function(dateStr, chatLogs) {
+        // ... (此函数保持不变)
+    }
 };
 
 // ==========================================
@@ -1133,14 +1310,13 @@ const app = {
         });
     },
     saveAllSettings: function() {
-        localStorage.setItem('conf_url', document.getElementById('api-url').value);
-        localStorage.setItem('conf_key', document.getElementById('api-key').value);
-        localStorage.setItem('conf_model', document.getElementById('api-model').value);
-        localStorage.setItem('conf_threshold', document.getElementById('memory-threshold').value);
-        characterManager.updateCurrentFromUI();
-        uiManager.closeSettings();
-        alert("设置已保存");
-    }
+    localStorage.setItem('conf_url', document.getElementById('api-url').value);
+    localStorage.setItem('conf_key', document.getElementById('api-key').value);
+    localStorage.setItem('conf_model', document.getElementById('api-model').value);
+    characterManager.updateCurrentFromUI();
+    uiManager.closeSettings();
+    alert("设置已保存");
+}
 };
 
 const uiManager = {
