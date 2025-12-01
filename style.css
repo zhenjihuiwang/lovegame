@@ -764,36 +764,52 @@ form { padding: 24px; }
     flex-direction: column;
     gap: 20px;
 }
+
 .comment-bubble {
-    padding: 12px 16px;
+    padding: 14px 18px; /* 加大一点内边距 */
     border-radius: 12px;
     max-width: 85%;
     font-size: 14px;
-    line-height: 1.8;
+    line-height: 1.6;
     font-family: "Noto Serif SC", serif;
     animation: memo-fade-in 0.5s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3); /* 加一点阴影增加层次感 */
 }
+
+/* 用户的评论：深灰背景 + 纯白文字 */
 .user-comment {
-    background-color: #1a1a1a;
-    align-self: flex-end; /* 你的评论靠右 */
+    background-color: #333333; /* 提亮背景色 */
+    color: #ffffff;            /* 纯白文字，确保看清 */
+    align-self: flex-end;
     border-bottom-right-radius: 2px;
+    border: 1px solid #444;
 }
+
+/* 他的回复：黑底 + 金色边框 + 亮灰文字 */
 .character-reply {
-    background-color: transparent;
-    border: 1px solid #333;
-    align-self: flex-start; /* 他的回复靠左 */
+    background-color: rgba(0, 0, 0, 0.6);
+    border: 1px solid #D4AF37; /* 金色边框 */
+    color: #e0e0e0;            /* 亮灰色文字，比原来更亮 */
+    align-self: flex-start;
     border-top-left-radius: 2px;
 }
+
+/* 回复上方的名字 */
 .reply-author {
     font-size: 12px;
-    color: #888;
-    margin-bottom: 4px;
-    font-style: italic;
+    color: #D4AF37; /* 名字用金色 */
+    margin-bottom: 6px;
+    font-weight: bold;
+    letter-spacing: 1px;
 }
+
+/* 正在输入的提示 */
 .reply-loading {
-    color: #666;
+    color: #aaa;
     font-style: italic;
     font-size: 13px;
+    border: none;
+    background: none;
     animation: pulse 1.5s infinite;
 }
 
@@ -861,4 +877,273 @@ form { padding: 24px; }
     color: #D4AF37; 
     border-color: #D4AF37; 
     font-weight: 600;
+}
+/* ================= NEW JOURNAL STYLE (START) ================= */
+
+/* 1. 基础容器与动画 */
+.journal-window { background-color: #050505; }
+
+@keyframes breathe-text {
+    0%, 100% { color: #D4AF37; text-shadow: 0 0 5px rgba(212, 175, 55, 0.1); }
+    50% { color: #fff; text-shadow: 0 0 15px rgba(212, 175, 55, 0.6), 0 0 30px rgba(212, 175, 55, 0.1); }
+}
+
+@keyframes breathe-border {
+    0%, 100% { border-color: rgba(212, 175, 55, 0.3); box-shadow: 0 0 10px rgba(212,175,55,0.05); }
+    50% { border-color: rgba(212, 175, 55, 0.8); box-shadow: 0 0 25px rgba(212,175,55,0.2); }
+}
+
+@keyframes float-up {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* 2. 头部设计 (Header) */
+.journal-new-header {
+    position: absolute; top: 0; left: 0; right: 0;
+    padding: 30px 24px 10px;
+    background: linear-gradient(to bottom, rgba(5,5,5,0.98), rgba(5,5,5,0.85));
+    backdrop-filter: blur(12px);
+    z-index: 50;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    display: flex; flex-direction: column; gap: 16px;
+}
+
+.header-top { display: flex; justify-content: space-between; align-items: flex-start; }
+
+.date-trigger { display: flex; align-items: baseline; gap: 10px; cursor: pointer; transition: transform 0.2s; }
+.date-trigger:active { transform: scale(0.98); }
+
+.date-day {
+    font-family: 'Cinzel', serif; font-size: 56px; line-height: 0.8; font-weight: 400;
+    animation: breathe-text 6s ease-in-out infinite; color: #D4AF37;
+}
+
+.date-meta { display: flex; flex-direction: column; }
+.date-month { font-size: 14px; text-transform: uppercase; letter-spacing: 3px; color: #D4AF37; font-weight: 700; font-family: 'Noto Serif SC', serif; }
+.date-year { font-size: 10px; color: #666; letter-spacing: 1px; margin-top: 2px; }
+
+/* 3. 关闭按钮 */
+.close-btn {
+    width: 36px; height: 36px; border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.1); background: transparent;
+    color: #666; display: flex; align-items: center; justify-content: center;
+    font-size: 18px; cursor: pointer; transition: all 0.3s;
+}
+.close-btn:hover { border-color: #D4AF37; color: #fff; transform: rotate(90deg); }
+
+/* 4. 视图切换器 */
+.view-switcher { display: flex; gap: 30px; padding-left: 4px; position: relative; }
+
+.switch-item {
+    background: none; border: none; position: relative;
+    font-size: 11px; text-transform: uppercase; letter-spacing: 2px;
+    color: #666; padding-bottom: 8px; cursor: pointer; transition: color 0.3s;
+}
+.switch-item:hover { color: #fff; }
+
+.switch-item.active { color: #D4AF37; font-weight: bold; }
+.switch-item.active::after {
+    content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 4px; height: 4px; background: #D4AF37; border-radius: 50%;
+    box-shadow: 0 0 10px #D4AF37; animation: breathe-text 3s infinite;
+}
+
+/* 5. 滚动内容区 */
+.journal-scroll-area {
+    padding-top: 160px; padding-left: 28px; padding-right: 28px; padding-bottom: 80px;
+    height: 100%; overflow-y: auto; position: relative;
+}
+.journal-scroll-area::-webkit-scrollbar { display: none; }
+
+.decorative-line {
+    position: absolute; left: 20px; top: 0; bottom: 0; width: 1px;
+    background: linear-gradient(to bottom, transparent 150px, rgba(255,255,255,0.05) 20%, rgba(255,255,255,0.05) 80%, transparent);
+    z-index: 0; pointer-events: none;
+}
+
+/* 视图切换逻辑 */
+.view-section { display: none; animation: float-up 0.4s ease-out; position: relative; z-index: 10; }
+.active-section { display: block !important; }
+.hidden-section { display: none !important; }
+
+/* 6. 内容样式 */
+.diary-title { font-size: 18px; color: #fff; margin-bottom: 20px; font-style: italic; font-family: "Noto Serif SC", serif; }
+.diary-text { font-size: 14px; line-height: 2.0; color: #aaa; text-align: justify; margin-bottom: 30px; font-family: "Noto Serif SC", serif; }
+.diary-text p { margin-bottom: 1.2em; }
+
+.footer-actions { margin-top: 40px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 24px; }
+.refresh-btn {
+    width: 100%; padding: 12px; border: 1px solid rgba(212, 175, 55, 0.3);
+    background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.05), transparent);
+    color: #D4AF37; font-size: 10px; letter-spacing: 2px;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    cursor: pointer; transition: all 0.3s; animation: breathe-border 5s infinite;
+}
+.refresh-btn:hover { background: rgba(212, 175, 55, 0.1); color: #fff; }
+
+.comment-preview { margin-top: 30px; }
+.comment-header { font-size: 9px; color: #555; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+.comment-input {
+    width: 100%; background: transparent; border: none;
+    border-bottom: 1px solid #333; padding: 10px 0;
+    color: white; font-size: 13px; font-family: "Noto Serif SC", serif; transition: border-color 0.3s;
+}
+.comment-input:focus { outline: none; border-color: #D4AF37; }
+
+.mem-node { padding-left: 16px; border-left: 1px solid rgba(255,255,255,0.1); margin-bottom: 16px; position: relative; }
+.mem-node::before { content: ''; position: absolute; left: -3px; top: 0; width: 5px; height: 5px; background: #000; border: 1px solid #D4AF37; border-radius: 50%; }
+.mem-date { font-size: 9px; color: #D4AF37; margin-bottom: 4px; display: block; opacity: 0.8; }
+.mem-text { font-size: 12px; color: #bbb; line-height: 1.6; }
+
+
+/* ================= META ROW STYLES (Weather & Mood) ================= */
+
+/* 元数据行容器 */
+.journal-meta-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 30px; /* 与正文拉开距离 */
+    animation: float-up 0.5s ease-out;
+}
+
+/* 通用胶囊样式 */
+.meta-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    font-family: sans-serif; /* 用无衬线体显得更现代数据化 */
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    padding: 6px 14px;
+    border-radius: 100px; /* 圆角胶囊 */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.02);
+    transition: all 0.3s;
+}
+
+/* 天气胶囊特异性 */
+.weather-chip {
+    color: #bbb;
+}
+.weather-chip i { font-size: 14px; }
+
+/* 心情胶囊特异性 */
+.mood-chip {
+    color: #D4AF37; /* 金色 */
+    border-color: rgba(212, 175, 55, 0.2);
+    background: rgba(212, 175, 55, 0.05);
+}
+
+/* 悬停微互动 */
+.meta-chip:hover {
+    border-color: #666;
+    background: rgba(255, 255, 255, 0.05);
+}
+.mood-chip:hover {
+    border-color: #D4AF37;
+}
+
+/* 巨大的背景图标淡入动画 */
+#noir-bg-icon {
+    transition: all 1s ease;
+    filter: blur(2px);
+}
+/* =========================================
+   Option A: 星轨呼吸链 (Memory Timeline)
+   ========================================= */
+
+/* 1. 呼吸动画定义 */
+@keyframes breathe-glow {
+    0%, 100% { 
+        box-shadow: 0 0 0 rgba(212, 175, 55, 0); 
+        border-color: rgba(212, 175, 55, 0.4);
+        background: #000;
+    } 
+    50% { 
+        box-shadow: 0 0 12px rgba(212, 175, 55, 0.8); 
+        border-color: #D4AF37; 
+        background: rgba(212, 175, 55, 0.1);
+    }
+}
+
+/* 2. 容器与轴线 */
+#memory-timeline-view {
+    padding: 20px 0 40px 20px; /* 左边留出空间给轴线 */
+    position: relative;
+    margin-left: 10px;
+    border-left: 1px solid rgba(255, 255, 255, 0.1); /* 这就是那条长长的轴线 */
+}
+
+/* 3. 单个记忆节点包装器 */
+.mem-node-wrapper { 
+    display: flex; 
+    margin-bottom: 30px; 
+    position: relative; 
+    align-items: flex-start;
+    animation: fade-in-up 0.5s ease forwards;
+}
+
+/* 4. 左侧时间戳 (08:30) */
+.mem-time-col { 
+    width: 45px; 
+    text-align: right; 
+    padding-right: 15px; 
+    font-family: 'JetBrains Mono', monospace; 
+    font-size: 11px; 
+    color: #666; 
+    margin-top: 4px; /* 对齐圆点 */
+    flex-shrink: 0;
+}
+
+/* 5. 呼吸的光点 (锚点) */
+.mem-dot-anchor { 
+    position: absolute; 
+    left: -25px; /* 正好定位在轴线上 (20px padding + 5px radius) */
+    top: 6px; 
+    width: 9px; 
+    height: 9px; 
+    background: #000; 
+    border: 1px solid #D4AF37; 
+    border-radius: 50%; 
+    z-index: 2;
+    /* 核心动画 */
+    animation: breathe-glow 3s infinite ease-in-out;
+}
+
+/* 6. 右侧内容卡片 */
+.mem-card { 
+    flex: 1; 
+    background: rgba(255, 255, 255, 0.03); 
+    border: 1px solid #333; 
+    padding: 12px 16px; 
+    border-radius: 6px; 
+    position: relative; 
+    transition: all 0.3s;
+}
+.mem-card:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: #555;
+}
+
+/* 卡片左边的金色装饰线 */
+.mem-card::before { 
+    content: ''; 
+    position: absolute; 
+    left: 0; 
+    top: 10px; 
+    bottom: 10px; 
+    width: 2px; 
+    background: linear-gradient(to bottom, #D4AF37, transparent); 
+    opacity: 0.6; 
+}
+
+/* 内容文字 */
+.mem-text-content {
+    font-size: 13px; 
+    color: #ccc; 
+    line-height: 1.6; 
+    font-family: "Noto Serif SC", serif;
 }

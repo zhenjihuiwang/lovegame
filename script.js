@@ -762,12 +762,11 @@ const aiEngine = {
         }
     },
 
-    // 【更新】强制压缩，并加上日期标签
     forceSummarize: async function() {
         const conf = this.getConfig();
         if (this.isCompressing || !conf.key) return;
         
-        memoManager.showToast("⚡ 正在整理记忆...");
+        memoManager.showToast("正在整理记忆...");
         this.isCompressing = true;
         
         const keepCount = 10; 
@@ -778,9 +777,29 @@ const aiEngine = {
         const toSummarize = this.history.slice(1, this.history.length - keepCount);
         const activeContext = this.history.slice(this.history.length - keepCount);
         
+        // 获取当前精确时间
+        const now = new Date();
+        const timeStr = now.getHours().toString().padStart(2,'0') + ":" + now.getMinutes().toString().padStart(2,'0');
+        const dateStr = now.getFullYear() + "-" + (now.getMonth()+1).toString().padStart(2,'0') + "-" + now.getDate().toString().padStart(2,'0');
+
         const compressPrompt = [
-            { role: "system", content: "你是一个专业的剧情记录员。请简要总结以下对话发生的关键事件。请使用【第一人称】(我=AI角色)。" },
-            { role: "user", content: `当前已有的长期记忆：${conf.summary}\n\n需要合并的新对话：\n${JSON.stringify(toSummarize)}\n\n重要：请以 "[YYYY-MM-DD] 总结内容" 的格式输出新的总结段落。如果已有记忆也有类似格式，请保留，并将新总结追加在最后。` }
+            { role: "system", content: "你是一个剧情记录员。请将以下对话总结为简短的记忆片段。请使用第一人称。" },
+            { role: "user", content: `
+当前长期记忆：${conf.summary}
+
+需要压缩的新对话：
+${JSON.stringify(toSummarize)}
+
+【格式指令】
+请将新对话总结为 1 条或多条关键事件。
+每条事件必须严格符合此格式：
+"[YYYY-MM-DD] <HH:MM> 事件内容"
+
+⚠️ 重要：
+1. 日期使用：${dateStr}
+2. 时间使用：${timeStr} (如果对话中有明确的时间流逝，可在此基础上微调，否则直接使用该时间)
+3. 必须包含 <HH:MM> 尖括号时间，否则系统无法识别！
+` }
         ];
 
         try {
@@ -793,22 +812,21 @@ const aiEngine = {
             const data = await res.json();
             let newSummary = data.choices[0].message.content;
 
-            const todayStr = new Date().toISOString().split('T')[0];
-            if (!newSummary.includes('[20') && !newSummary.includes('202')) {
-                 newSummary = `[${todayStr}] ` + newSummary;
+            // 简单清洗，防止AI没写日期
+            if (!newSummary.includes('[20')) {
+                 newSummary = `[${dateStr}] <${timeStr}> ` + newSummary;
             }
 
             const char = characterManager.getCurrent();
-            char.summary = newSummary;
+            char.summary = (char.summary || "") + "\n" + newSummary;
+            
             characterManager.save();
             
-            // 【修复关键】将更新后的记忆同步到隐藏的textarea中，确保UI与数据一致
+            // 同步UI
             const memoryTextarea = document.getElementById('char-memory');
-            if (memoryTextarea) {
-                memoryTextarea.value = newSummary;
-            }
+            if (memoryTextarea) memoryTextarea.value = char.summary;
             
-            if(document.getElementById('view-memory') && document.getElementById('view-memory').classList.contains('view-active')) {
+            if(document.getElementById('view-memory') && document.getElementById('view-memory').classList.contains('active-section')) {
                 journalManager.renderMemoryCore();
             }
 
@@ -818,7 +836,7 @@ const aiEngine = {
             ];
             this.saveContext();
             
-            memoManager.showToast("✅ 记忆已压缩更新");
+            memoManager.showToast("✅ 记忆已归档");
 
         } catch (e) {
             console.error("Memory Compress Failed", e);
@@ -895,18 +913,20 @@ const journalManager = {
         const modal = document.getElementById('journal-modal');
         modal.classList.remove('invisible', 'opacity-0');
         modal.classList.add('modal-open');
-        modal.style.pointerEvents = 'auto'; // 确保父容器可点击
+        modal.style.pointerEvents = 'auto';
 
-        const char = characterManager.getCurrent();
-        const dates = Object.keys(char.journal || {}).sort().reverse();
-        const latestDate = dates[0] || new Date().toLocaleDateString('sv-SE');
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        const todayStr = `${y}-${m}-${d}`;
         
-        this.selectedDate = latestDate;
-        this.calendarDate = new Date(latestDate.replace(/-/g, '/'));
+        this.selectedDate = todayStr; 
+        this.calendarDate = new Date(todayStr.replace(/-/g, '/'));
         
         this.renderTimeline();
-        this.loadEntry(this.selectedDate);
-        this.switchView('diary'); // 默认显示日记
+        this.loadEntry(this.selectedDate); 
+        this.switchView('diary');
     },
     
     close: function() {
@@ -921,45 +941,81 @@ const journalManager = {
         }
     },
 
-    // [FINAL CORRECTED VERSION] - 这是本次修复的核心
-    loadEntry: function(dateStr) {
+    loadEntry: function(dateStr, forceEntry = null) {
         if (!dateStr) return;
         this.selectedDate = dateStr;
-        this.renderTimeline(); // 重新渲染时间轴以高亮当前选项
+        this.renderTimeline();
 
         const char = characterManager.getCurrent();
-        const entry = char.journal ? char.journal[dateStr] : null;
+        const entry =forceEntry || (char.journal ? char.journal[dateStr] : null); 
+
+        // 获取 DOM 元素
+        const titleEl = document.getElementById('noir-title');
+        const bodyEl = document.getElementById('noir-body');
+        const headerDay = document.getElementById('journal-header-day');
+        const headerMonth = document.getElementById('journal-header-month');
+        const headerYear = document.getElementById('journal-year-display');
+        
+        // 获取新加的 DOM 元素
+        const weatherText = document.getElementById('meta-weather-text');
+        const weatherIcon = document.getElementById('meta-weather-icon');
+        const moodText = document.getElementById('meta-mood-text');
+        const bgIcon = document.getElementById('noir-bg-icon');
+
+        // 日期解析
+        const d = new Date(dateStr.replace(/-/g, '/'));
+        const year = d.getFullYear().toString();
+        const monthName = d.toLocaleString('en-US', { month: 'short' }).toUpperCase();
+        const day = d.getDate();
+
+        // 更新头部
+        headerDay.innerText = day;
+        headerMonth.innerText = monthName;
+        headerYear.innerText = year;
 
         if (entry) {
-            const d = new Date(dateStr.replace(/-/g, '/'));
-            const year = d.getFullYear().toString();
-            const monthName = d.toLocaleString('en-US', { month: 'short' }).toUpperCase();
-            const day = d.getDate();
-
-            // 更新【新头部】的日期元素
-            document.getElementById('journal-header-day').innerText = day;
-            document.getElementById('journal-header-month').innerText = monthName;
-            document.getElementById('journal-year-display').innerText = year;
-
-            // 更新【日记正文区】的元素
-            document.getElementById('noir-bg-year').innerText = `'${year.slice(2)}`;
-            document.getElementById('noir-title').innerText = `"${entry.title}"`;
-            
+            titleEl.innerText = `"${entry.title}"`;
             const paragraphs = entry.diary.split('\n').filter(p => p.trim() !== "");
-            document.getElementById('noir-body').innerHTML = paragraphs.map(p => `<p>${p}</p>`).join('');
-        } else {
-            // 如果没有日记，则【清空】所有相关显示
-            document.getElementById('journal-header-day').innerText = '--';
-            document.getElementById('journal-header-month').innerText = '---';
-            document.getElementById('journal-year-display').innerText = '----';
+            bodyEl.innerHTML = paragraphs.map(p => `<p>${p}</p>`).join('');
 
-            document.getElementById('noir-bg-year').innerText = ''; // 背景年份也清空
-            document.getElementById('noir-title').innerText = '当天没有日记...';
-            document.getElementById('noir-body').innerHTML = '';
+            // ==== 智能推断天气与心情 (伪数据生成) ====
+            const text = entry.diary.toLowerCase();
+            
+            // 1. 推断天气
+            let wInfo = { text: "CLOUDY", icon: "ph-cloud" };
+            if (text.includes("雨") || text.includes("rain")) wInfo = { text: "RAINY", icon: "ph-cloud-rain" };
+            else if (text.includes("雪") || text.includes("snow") || text.includes("冷")) wInfo = { text: "SNOWY", icon: "ph-snowflake" };
+            else if (text.includes("晴") || text.includes("阳") || text.includes("sun")) wInfo = { text: "SUNNY", icon: "ph-sun" };
+            else if (text.includes("风") || text.includes("wind")) wInfo = { text: "WINDY", icon: "ph-wind" };
+            else if (text.includes("夜") || text.includes("月") || text.includes("star")) wInfo = { text: "STARRY", icon: "ph-moon-stars" };
+
+            // 2. 推断心情
+            let mText = "CALM";
+            if (text.includes("想") || text.includes("miss")) mText = "MISSING YOU";
+            else if (text.includes("心") || text.includes("sad") || text.includes("泪")) mText = "MELANCHOLY";
+            else if (text.includes("笑") || text.includes("happy") || text.includes("乐")) mText = "JOYFUL";
+            else if (text.includes("烦") || text.includes("angry")) mText = "RESTLESS";
+
+            // 更新 UI
+            weatherText.innerText = wInfo.text;
+            weatherIcon.className = `ph ${wInfo.icon}`;
+            moodText.innerText = mText;
+            
+            // 更新背景大图标
+            bgIcon.className = `ph ${wInfo.icon} absolute -right-6 bottom-20 text-[12rem] text-[#111] pointer-events-none z-[-1] opacity-60`;
+
+        } else {
+            // 没有日记时的默认状态
+            titleEl.innerText = '当天没有日记...';
+            bodyEl.innerHTML = '';
+            weatherText.innerText = '---';
+            moodText.innerText = '---';
+            bgIcon.className = 'ph ph-cloud-slash absolute -right-6 bottom-20 text-[12rem] text-[#111] pointer-events-none z-[-1] opacity-60';
         }
 
         this.renderDiaryActions(!!entry);
         this.renderComments(entry ? entry.comments : null);
+        this.renderMemoryCore(); 
     },
     
     // [后面的代码保持不变，确保功能完整]
@@ -999,50 +1055,105 @@ const journalManager = {
         thread.scrollTop = thread.scrollHeight;
     },
 
+    // ==========================================
+    // 优化版：生成有意义标题 + 强制UI刷新
+    // ==========================================
     handleDiaryRefresh: async function() {
         const btn = document.getElementById('refresh-diary-btn');
+        const btnText = document.getElementById('refresh-diary-text');
+        
         btn.disabled = true;
         btn.classList.add('loading');
-        memoManager.showToast('正在连接他的思绪...');
-
-        const char = characterManager.getCurrent();
-        const entry = char.journal ? char.journal[this.selectedDate] : null;
-
-        let prompt = '';
-        if (entry) { // 刷新逻辑
-            prompt = `你是一位作家，擅长用细腻的笔触书写内心独白。这是你之前为日期 ${this.selectedDate} 写下的一篇日记：\n\n"""\n${entry.diary}\n"""\n\n现在，请你围绕同样的核心事件和情感，但用一种全新的角度或更丰富的细节，重新书写这篇日记。让它感觉既熟悉又新颖。请直接输出日记正文。`;
-        } else { // 生成逻辑
-            prompt = `今天是 ${this.selectedDate}，但你和玩家之间没有任何互动记录。请根据你的角色设定和长期记忆，想象一下你独自一人时会想些什么、做些什么，并为今天写下一篇充满你个人风格的日记。请直接输出日记正文。`;
-        }
+        const originalBtnText = btnText.innerText;
+        btnText.innerText = "正在构思标题...";
+        memoManager.showToast('正在回顾今日发生的事...');
 
         try {
-            const conf = aiEngine.getConfig();
+            const char = characterManager.getCurrent();
+            const targetDate = this.selectedDate;
+            const conf = aiEngine.getConfig(); 
+            const memoryContext = char.summary || "（暂无具体的过往记忆）";
+            
+            // --- 核心修改：让 AI 专门生成标题 ---
+            const systemPrompt = `你现在是【${char.name}】。请为【${targetDate}】写一篇日记。
+            
+            【格式严格要求】
+            第一行：必须是这篇日记的标题（不要写日期，要写一个符合角色口吻的标题）。
+            第二行开始：日记正文。
+            
+            【内容要求】
+            不要使用Markdown。不要加引号。必须符合角色人设口吻。结合记忆：${memoryContext}`;
+
             const res = await fetch(aiEngine.fixUrl(conf.url, "/chat/completions"), {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "Authorization": `Bearer ${conf.key}` },
-                body: JSON.stringify({ model: conf.model, messages: [{ role: "user", content: prompt }], temperature: 0.8 })
+                body: JSON.stringify({
+                    model: conf.model,
+                    messages: [
+                        { role: "system", content: systemPrompt },
+                        { role: "user", content: "请开始书写：" }
+                    ],
+                    temperature: 0.85 
+                })
             });
+            
             const data = await res.json();
-            const newDiaryText = data.choices[0].message.content;
+            if (data.error) throw new Error(data.error.message);
+            
+            // 清洗数据
+            let rawContent = data.choices[0].message.content.replace(/```json/g, "").replace(/```/g, "").trim();
+            if (rawContent.startsWith('"') && rawContent.endsWith('"')) rawContent = rawContent.slice(1, -1);
 
-            if (!char.journal) char.journal = {};
-            if (!char.journal[this.selectedDate]) { // 如果是新生成的
-                char.journal[this.selectedDate] = { title: "一次新的回忆", memory: "由玩家主动生成。", comments: [] };
+            // --- 核心修改：分离标题和正文 ---
+            const lines = rawContent.split('\n'); // 按行分割
+            let finalTitle = "无题";
+            let finalBody = "";
+
+            if (lines.length > 0) {
+                // 取第一行做标题，并去掉可能存在的 "标题：" 前缀
+                finalTitle = lines[0].replace(/^(标题|Title)[:：]/, "").trim();
+                // 剩下的重新组合成正文
+                finalBody = lines.slice(1).join('\n').trim();
             }
             
-            char.journal[this.selectedDate].diary = newDiaryText;
-            char.journal[this.selectedDate].comments = []; // 刷新或新生成后，清空旧评论
+            // 如果AI没分行，或者正文为空，这就当成只有正文
+            if (!finalBody) { 
+                finalBody = rawContent; 
+                finalTitle = "关于今天"; 
+            }
 
+            // 保存数据
+            if (!char.journal) char.journal = {};
+            char.journal[targetDate] = { 
+                title: finalTitle, 
+                diary: finalBody, 
+                memory: "Generated", 
+                comments: [] 
+            };
             characterManager.save();
-            this.loadEntry(this.selectedDate); 
-            memoManager.showToast('✅ 他的思绪已更新');
+            
+            // 强制刷新UI
+            this.loadEntry(targetDate, char.journal[targetDate]); // 加载数据
+            
+            // 双重保险：直接上屏
+            const bodyEl = document.getElementById('noir-body');
+            const titleEl = document.getElementById('noir-title');
+            
+            if (titleEl) titleEl.innerText = `"${finalTitle}"`; // 显示标题
+            if (bodyEl) {
+                bodyEl.innerHTML = finalBody.split('\n').filter(p=>p.trim()).map(p => `<p>${p}</p>`).join('');
+                bodyEl.style.display = 'block';
+            }
+
+            memoManager.showToast('日记已写好');
 
         } catch(e) {
-            console.error("Diary refresh failed:", e);
-            memoManager.showToast('❌ 连接中断了...');
+            console.error(e);
+            memoManager.showToast('❌写作失败: ' + e.message);
         } finally {
             btn.disabled = false;
             btn.classList.remove('loading');
+            btnText.innerText = "REGENERATE DIARY";
         }
     },
     
@@ -1174,28 +1285,37 @@ const journalManager = {
     },
 
     switchView: function(type) {
-        const memView = document.getElementById('view-memory');
-        const diaryView = document.getElementById('view-diary');
+        // 1. 获取按钮
         const memBtn = document.getElementById('btn-view-memory');
         const diaryBtn = document.getElementById('btn-view-diary');
+        
+        // 2. 获取视图容器
+        const memView = document.getElementById('view-memory');
+        const diaryView = document.getElementById('view-diary');
 
-        // 注意：新版切换按钮没有 .active-switch 类，只有 .active
+        // 3. 切换逻辑
         if (type === 'memory') {
-            memView.classList.remove('view-hidden');
-            memView.classList.add('view-active');
-            diaryView.classList.remove('view-active');
-            diaryView.classList.add('view-hidden');
+            // 显示记忆
+            memView.classList.remove('hidden-section');
+            memView.classList.add('active-section');
             
+            diaryView.classList.remove('active-section');
+            diaryView.classList.add('hidden-section');
+
+            // 按钮状态
             memBtn.classList.add('active');
             diaryBtn.classList.remove('active');
             
             this.renderMemoryCore();
         } else {
-            diaryView.classList.remove('view-hidden');
-            diaryView.classList.add('view-active');
-            memView.classList.remove('view-active');
-            memView.classList.add('view-hidden');
+            // 显示日记
+            diaryView.classList.remove('hidden-section');
+            diaryView.classList.add('active-section');
             
+            memView.classList.remove('active-section');
+            memView.classList.add('hidden-section');
+            
+            // 按钮状态
             diaryBtn.classList.add('active');
             memBtn.classList.remove('active');
         }
@@ -1204,6 +1324,10 @@ const journalManager = {
     toggleSidebar: function(show) {
         const sidebar = document.getElementById('journal-sidebar');
         const backdrop = document.getElementById('journal-backdrop');
+        
+        // 【修复代码】如果没有侧边栏元素，直接返回
+        if (!sidebar || !backdrop) return;
+
         if (show) {
             sidebar.classList.remove('-translate-x-full');
             backdrop.classList.remove('opacity-0', 'pointer-events-none');
@@ -1215,6 +1339,9 @@ const journalManager = {
 
     renderTimeline: function() {
         const container = document.getElementById('journal-timeline');
+        // 【修复代码】如果找不到时间轴容器（因为新设计删了它），直接结束，防止报错
+        if (!container) return; 
+
         container.innerHTML = '';
         const char = characterManager.getCurrent();
         const journalEntries = char.journal || {};
@@ -1248,29 +1375,66 @@ const journalManager = {
         textarea.classList.toggle('hidden');
         view.classList.toggle('hidden');
     },
-    
+
+    // ==========================================
+    // 渲染器：更强的容错性
+    // ==========================================
     renderMemoryCore: function() {
         const container = document.getElementById('memory-timeline-view');
-        container.innerHTML = '';
         const char = characterManager.getCurrent();
-        const summary = char.summary || "核心记忆为空。";
+        const targetDate = this.selectedDate;
+        const summary = char.summary || "";
+        
+        const countEl = document.getElementById('mem-usage-display');
+        if(countEl) countEl.innerText = `Total: ${summary.length} chars`;
 
-        document.getElementById('mem-usage-display').innerText = `${summary.length} chars`;
+        container.innerHTML = '';
 
-        const memories = summary.split(/(?=\[\d{4}-\d{2}-\d{2}\])/g);
+        const escapedDate = targetDate.replace(/-/g, '-'); 
+        const regex = new RegExp(`\\[${escapedDate}\\]\\s*([\\s\\S]*?)(?=\\[\\d{4}-\\d{2}-\\d{2}\\]|$)`, 'gi');
+        
+        let match;
+        let foundAny = false;
 
-        if (memories.length === 0 || summary === "核心记忆为空。") {
-            container.innerHTML = `<p class="text-sm text-gray-500">${summary}</p>`;
-            return;
+        while ((match = regex.exec(summary)) !== null) {
+            let content = match[1].trim();
+            if (content.length === 0) continue;
+            foundAny = true;
+
+            let timeDisplay = "LOG"; 
+            
+            // --- 增强正则：匹配 <HH:MM>, [HH:MM], (HH:MM) 或 直接 HH:MM ---
+            // 只要是 数字:数字 格式，就认为是时间
+            const timeMatch = content.match(/[:：<\[\(]?\s*(\d{1,2}[:：]\d{2})\s*[:：>\]\)]?/);
+            
+            if (timeMatch) {
+                timeDisplay = timeMatch[1].replace('：', ':'); // 统一冒号格式
+                // 从正文中移除时间字符串，保持干净
+                content = content.replace(timeMatch[0], "").trim();
+                // 移除开头多余的标点
+                content = content.replace(/^[-,，.。:：\s]+/, "");
+            }
+
+            const node = document.createElement('div');
+            node.className = 'mem-node-wrapper';
+            node.innerHTML = `
+                <div class="mem-time-col">${timeDisplay}</div>
+                <div class="mem-dot-anchor"></div>
+                <div class="mem-card">
+                    <div class="mem-text-content">${content}</div>
+                </div>
+            `;
+            container.appendChild(node);
         }
 
-        memories.forEach(mem => {
-            if (mem.trim() === '') return;
-            const dateMatch = mem.match(/\[(\d{4}-\d{2}-\d{2})\]/);
-            const date = dateMatch ? dateMatch[1] : '未知日期';
-            const content = mem.replace(/\[\d{4}-\d{2}-\d{2}\]\s*/, '');
-            this.createMemoryNode(container, date, `<p class="mem-text">${content}</p>`);
-        });
+        if (!foundAny) {
+            container.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-40 opacity-50" style="margin-left:-20px">
+                    <i class="ph ph-planet text-4xl mb-2 text-gray-600"></i>
+                    <p class="text-xs text-gray-500 font-serif">暂无星轨记录</p>
+                </div>
+            `;
+        }
     },
     
     createMemoryNode: function(container, date, htmlContent) {

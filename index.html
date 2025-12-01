@@ -8,6 +8,7 @@
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@300;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
@@ -284,140 +285,117 @@
         </div>
     </div>
 
-<!-- ==== 日记系统全屏弹窗  ==== -->
-<div id="journal-modal" class="fixed inset-0 z-[80] bg-black/95 backdrop-blur-sm flex items-center justify-center transition-opacity duration-300 opacity-0 pointer-events-none invisible">
+<!-- ==== 日记系统全屏弹窗 (新版) ==== -->
+<div id="journal-modal" class="fixed inset-0 z-[80] bg-black/90 backdrop-blur-md flex items-center justify-center transition-opacity duration-300 opacity-0 pointer-events-none invisible">
     
     <!-- 窗口容器 -->
-    <div class="journal-window w-[100vw] h-[100vh] md:w-[95vw] md:h-[90vh] md:max-w-5xl bg-[#0a0a0a] md:border border-white/10 md:rounded-xl flex overflow-hidden shadow-2xl relative">
+    <div class="journal-window w-full h-full md:w-[400px] md:h-[85vh] md:max-h-[900px] bg-[#050505] md:border border-[#333] md:rounded-[40px] flex flex-col relative overflow-hidden shadow-2xl">
         
-        <!-- 全局关闭按钮 (右上角) -->
-        <button onclick="journalManager.close()" class="absolute top-4 right-4 z-[100] text-gray-500 hover:text-white bg-black/50 rounded-full p-2">
-            <i class="ph ph-x text-2xl"></i>
-        </button>
+        <!-- === 1. 头部 (固定定位) === -->
+        <header class="journal-new-header">
+            <!-- 上半部分：日期与关闭 -->
+            <div class="header-top">
+                <!-- 点击触发日历 -->
+                <div class="date-trigger" onclick="journalManager.showCalendar()">
+                    <span id="journal-header-day" class="date-day">--</span>
+                    <div class="date-meta">
+                        <span id="journal-header-month" class="date-month">---</span>
+                        <span id="journal-year-display" class="date-year">----</span>
+                    </div>
+                </div>
 
-        <!-- 1. 移动端侧边栏遮罩 (点击空白关闭) -->
-        <div id="journal-backdrop" onclick="journalManager.toggleSidebar(false)" class="absolute inset-0 z-20 bg-black/60 backdrop-blur-sm transition-opacity duration-300 opacity-0 pointer-events-none md:hidden"></div>
-
-        <!-- 2. 左侧时间轴 (响应式抽屉) -->
-        <div id="journal-sidebar" class="absolute inset-y-0 left-0 z-30 w-72 bg-[#0c0c0c] border-r border-white/10 transform -translate-x-full transition-transform duration-300 md:relative md:translate-x-0 md:w-64 flex flex-col shadow-2xl md:shadow-none">
-            <div class="p-6 border-b border-white/5 flex justify-between items-center h-20">
-                <span class="text-[10px] tracking-[3px] text-[#D4AF37] uppercase font-serif">Timeline</span>
-                <button onclick="journalManager.toggleSidebar(false)" class="text-gray-500 md:hidden"><i class="ph ph-caret-left text-xl"></i></button>
-            </div>
-            <div id="journal-timeline" class="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide">
-                <!-- JS 生成内容 -->
-            </div>
-        </div>
-
-        <!-- 3. 右侧内容区 -->
-        <div class="flex-1 flex flex-col bg-[#111] relative w-full">
-            <!-- 头部导航 -->
-            <div class="journal-header p-6 md:p-8 relative border-b border-white/10 bg-[#111] z-10">
-    
                 <!-- 关闭按钮 -->
-                <button onclick="journalManager.close()" class="absolute top-4 right-4 z-10 text-gray-500 hover:text-white bg-black/30 rounded-full p-2 transition">
-                    <i class="ph ph-x text-2xl"></i>
-                </button>
-    
-    <!-- 主体内容 -->
-    <div class="flex items-start justify-between">
-        <!-- 左侧：日期 (点击可打开日历) -->
-        <div onclick="journalManager.showCalendar()" class="cursor-pointer group">
-            <div class="flex items-baseline gap-3">
-                <span id="journal-header-day" class="text-5xl md:text-6xl text-[#D4AF37] font-serif font-medium transition-colors group-hover:text-white">--</span>
-                <span id="journal-header-month" class="text-xl md:text-2xl text-gray-500 font-serif uppercase tracking-widest">---</span>
-            </div>
-            <!-- 确保这个 div 存在且 ID 正确 -->
-            <div id="journal-year-display" class="text-sm text-gray-600 tracking-widest mt-1">----</div>
-        </div>
-
-        <!-- 右侧：视图切换 -->
-        <div class="journal-header-switcher flex flex-col items-end gap-3 text-sm text-gray-500 mt-2">
-             <button onclick="journalManager.switchView('diary')" id="btn-view-diary" class="active">
-                阅览日记
-            </button>
-            <button onclick="journalManager.switchView('memory')" id="btn-view-memory">
-                检索记忆
-            </button>
-        </div>
-    </div>
-</div>
-
-            <!-- 内容滚动区 -->
-            <div class="flex-1 relative overflow-hidden bg-[#0a0a0a]">
-                <!-- 视图 A: 记忆核心 (Memory Core) -->
-                <div id="view-memory" class="absolute inset-0 flex flex-col transition-all duration-500 opacity-0 translate-y-4 pointer-events-none bg-[#0a0a0a]">
-                    <!-- ... 记忆核心的内部代码保持不变 ... -->
-                    <div class="h-16 border-b border-white/10 flex items-center justify-between px-6 md:px-10 shrink-0 bg-[#0f0f0f]/90 backdrop-blur z-20"> <div class="flex items-center gap-2"> <i class="ph ph-cpu text-[#D4AF37] animate-pulse"></i> <span class="text-[10px] tracking-[0.2em] text-[#D4AF37] font-bold">LONG-TERM CORE</span> </div> <div class="flex items-center gap-3"> <button onclick="journalManager.toggleMemoryEdit()" id="btn-mem-edit" class="text-xs text-gray-500 hover:text-white flex items-center gap-1 transition"> <i class="ph ph-pencil-simple"></i> <span class="hidden md:inline">EDIT</span> </button> <button onclick="aiEngine.forceSummarize()" class="border border-[#D4AF37]/50 text-[#D4AF37] hover:bg-[#D4AF37] hover:text-black px-3 py-1 text-[10px] tracking-widest transition flex items-center gap-1"> <i class="ph ph-lightning"></i> COMPRESS </button> </div> </div> <div class="flex-1 relative overflow-hidden"> <div id="memory-timeline-view" class="absolute inset-0 overflow-y-auto p-6 md:p-10 scrollbar-hide space-y-8"></div> <textarea id="char-memory" class="absolute inset-0 w-full h-full bg-[#050505] text-gray-400 font-mono text-xs p-6 md:p-10 border-none outline-none resize-none hidden" spellcheck="false" placeholder="系统记忆存储区..."></textarea> </div> <div class="h-12 border-t border-white/10 bg-[#080808] flex items-center justify-between px-6 md:px-10 shrink-0 text-[10px] text-gray-500"> <div class="flex items-center gap-2"> <span>AUTO-COMPRESS THRESHOLD:</span> <input type="number" id="memory-threshold" class="bg-[#111] border border-white/20 w-12 text-center text-white focus:border-[#D4AF37] outline-none" value="20" oninput="localStorage.setItem('conf_threshold', this.value)"> <span>ROUNDS</span> </div> <div class="flex items-center gap-1 opacity-50"> <i class="ph ph-database"></i> <span id="mem-usage-display">0 chars</span> </div> </div>
-                </div>
-
-                <!-- 视图 B: 日记本 (结构已修正) -->
-<div id="view-diary" class="absolute inset-0 overflow-y-auto transition-all duration-500 opacity-100 translate-y-0 scrollbar-hide bg-[#050505]">
-    
-    <!-- 1. 巨大的背景年份装饰 (绝对定位) -->
-    <div id="noir-bg-year" class="absolute -right-4 top-0 text-[8rem] md:text-[12rem] font-bold text-[#0c0c0c] select-none pointer-events-none leading-none z-0 font-serif">
-        '25
-    </div>
-
-    <!-- 2. 装饰竖线 (左侧) -->
-    <div class="absolute top-0 left-6 md:left-10 bottom-0 w-[1px] bg-[#222] z-0"></div>
-
-    <!-- 3. 主要内容区 -->
-    <div class="relative z-10 min-h-full p-6 md:p-12 pl-12 md:pl-20 pb-24 max-w-4xl mx-auto">
-
-        <!-- 标题 -->
-        <h1 id="noir-title" class="text-2xl md:text-3xl text-gray-200 font-serif leading-relaxed mb-8 italic">
-            Loading...
-        </h1>
-
-        <!-- 正文 -->
-        <div id="noir-body" class="text-[#b0b0b0] font-serif text-[15px] md:text-[16px] leading-[2.2] text-justify border-l-2 border-[#1a1a1a] pl-6 space-y-6">
-            <!-- JS 将在这里填入段落 -->
-        </div>
-
-        <!-- ======== 新增功能区：刷新与评论 (正确的位置) ======== -->
-        <div class="mt-16">
-            <!-- 1. 日记操作区 (刷新/生成) -->
-            <div id="diary-actions-footer" class="diary-actions-footer">
-                <button id="refresh-diary-btn" onclick="journalManager.handleDiaryRefresh()" class="refresh-button">
-                    <i class="ph ph-arrows-clockwise"></i>
-                    <span id="refresh-diary-text">为今天生成一篇日记</span>
+                <button onclick="journalManager.close()" class="close-btn">
+                    <i class="ph ph-x"></i>
                 </button>
             </div>
-        
-            <!-- 2. 评论区 -->
-            <div id="comment-section" class="comment-section hidden">
-                <h3 class="comment-section-title">与他的回响...</h3>
-                
-                <!-- 评论对话线程 -->
-                <div id="comment-thread" class="comment-thread">
-                    <!-- 评论内容由 JS 动态生成 -->
-                </div>
-        
-                <!-- 评论输入表单 -->
-                <form id="comment-form" onsubmit="event.preventDefault(); journalManager.submitComment();">
-                    <textarea id="comment-textarea" placeholder="你想对这篇日记说些什么？" required></textarea>
-                    <button id="comment-submit-btn" type="submit" class="comment-submit-btn">发送回信</button>
-                </form>
-            </div>
-        </div>
-        <!-- ======== 功能区结束 ======== -->
 
-        <!-- 底部印章 -->
-        <div class="mt-16 flex justify-end opacity-0 animate-fade-in" id="noir-stamp">
-            <div class="border border-white/20 px-4 py-2 rotate-[-5deg] opacity-60 hover:opacity-100 transition">
-                <span class="text-[10px] tracking-[0.4em] text-white/40 uppercase block text-center">Encrypted</span>
-                <span class="text-xs text-[#D4AF37] font-serif italic text-center block">Only for you</span>
+            <!-- 下半部分：视图切换 -->
+            <div class="view-switcher">
+                <button id="btn-view-diary" onclick="journalManager.switchView('diary')" class="switch-item active">
+                    Diary
+                </button>
+                <button id="btn-view-memory" onclick="journalManager.switchView('memory')" class="switch-item">
+                    Memory
+                </button>
             </div>
+        </header>
+
+        <!-- 装饰线 -->
+        <div class="decorative-line"></div>
+
+        <!-- === 2. 内容滚动区域 === -->
+        <div class="journal-scroll-area">
+            
+            <!-- 视图 A: 日记本 -->
+<div id="view-diary" class="view-section active-section relative">
+    
+    <!-- 1. 标题 -->
+    <h1 id="noir-title" class="diary-title">Loading...</h1>
+    
+    <!-- 2. 新增：元数据行 (天气 & 心情) -->
+    <div class="journal-meta-row">
+        <!-- 天气胶囊 -->
+        <div class="meta-chip weather-chip">
+            <i id="meta-weather-icon" class="ph ph-cloud-moon"></i>
+            <span id="meta-weather-text">Unknown</span>
+        </div>
+        <!-- 装饰竖线 -->
+        <div class="w-[1px] h-3 bg-[#333]"></div>
+        <!-- 心情胶囊 -->
+        <div class="meta-chip mood-chip">
+            <i class="ph ph-heartbeat animate-pulse"></i>
+            <span id="meta-mood-text">Calm</span>
         </div>
     </div>
+
+    <!-- 3. 正文 -->
+    <div id="noir-body" class="diary-text mt-6"></div>
+
+    <!-- 4. 底部功能区 (保持不变) -->
+    <div class="footer-actions">
+        <div id="diary-actions-footer">
+            <button id="refresh-diary-btn" onclick="journalManager.handleDiaryRefresh()" class="refresh-btn">
+                <i class="ph ph-arrows-clockwise"></i>
+                <span id="refresh-diary-text">REGENERATE DIARY</span>
+            </button>
+        </div>
+
+        <div id="comment-section" class="comment-preview hidden">
+            <div class="comment-header">Echoes (Comments)</div>
+            <div id="comment-thread" class="space-y-4 mb-4"></div>
+            <form id="comment-form" onsubmit="event.preventDefault(); journalManager.submitComment();" class="relative">
+                <input type="text" id="comment-textarea" class="comment-input" placeholder="Write a reply to him..." required>
+                <button id="comment-submit-btn" type="submit" class="absolute right-0 bottom-2 text-[#D4AF37] text-xs">SEND</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- 5. 新增：巨大的背景氛围图标  -->
+    <i id="noir-bg-icon" class="ph ph-cloud-rain absolute -right-6 bottom-20 text-[12rem] text-[#111] pointer-events-none z-[-1] opacity-60"></i>
 </div>
-            </div>
-        </div>
 
+            <!-- 视图 B: 记忆核心 -->
+            <div id="view-memory" class="view-section hidden-section">
+                <div class="flex items-center justify-between mb-6">
+                    <div class="text-[10px] tracking-[0.2em] text-[#D4AF37] font-bold">LONG-TERM CORE</div>
+                    <div class="flex gap-2">
+                         <button onclick="journalManager.toggleMemoryEdit()" class="text-xs text-gray-500 hover:text-white"><i class="ph ph-pencil-simple"></i> EDIT</button>
+                         <button onclick="aiEngine.forceSummarize()" class="text-xs text-[#D4AF37] border border-[#D4AF37]/30 px-2 py-1">COMPRESS</button>
+                    </div>
+                </div>
+                <div id="memory-timeline-view" class="space-y-6 pb-12"></div>
+                <textarea id="char-memory" class="w-full h-[60vh] bg-[#080808] text-gray-400 font-mono text-xs p-4 border-none outline-none resize-none hidden"></textarea>
+                <div class="mt-4 flex justify-between text-[9px] text-gray-600 border-t border-white/5 pt-2">
+                    <span>THRESHOLD: <input type="number" id="memory-threshold" value="20" class="bg-transparent text-center w-8 text-white"></span>
+                    <span id="mem-usage-display">0 chars</span>
+                </div>
+            </div>
+
+        </div>
     </div>
 
-    <!-- 日历选择弹窗 (Calendar Modal) - 正确的位置 -->
+    <!-- 日历弹窗保持原样 -->
     <div id="calendar-modal" class="absolute inset-0 z-[90] bg-black/80 backdrop-blur-sm flex items-center justify-center transition-opacity duration-300 opacity-0 pointer-events-none invisible" onclick="journalManager.hideCalendar()">
         <div class="calendar-container" onclick="event.stopPropagation()">
             <div class="calendar-header">
@@ -426,9 +404,7 @@
                 <button onclick="journalManager.changeMonth(1)" class="calendar-nav-arrow"><i class="ph ph-caret-right"></i></button>
             </div>
             <div class="calendar-grid">
-                <!-- Weekdays -->
                 <div class="weekday">日</div><div class="weekday">一</div><div class="weekday">二</div><div class="weekday">三</div><div class="weekday">四</div><div class="weekday">五</div><div class="weekday">六</div>
-                <!-- Calendar Days will be generated by JS here -->
             </div>
             <div class="calendar-legend">
                 <div class="legend-item"><span class="legend-dot dot-diary"></span> 日记</div>
@@ -436,7 +412,6 @@
             </div>
         </div>
     </div>
-
 </div>
 
     
