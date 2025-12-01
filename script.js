@@ -445,38 +445,246 @@ const timeManager = {
 };
 
 // ==========================================
-// 8. 历史记录
+// 8. 历史记录 
 // ==========================================
 const historyManager = {
     logs: [],
+    activeIndex: null, 
+    isBatchMode: false, 
+    selectedSet: new Set(), 
+
     init: function() {
         const cid = characterManager.currentId; if(!cid) return;
         const saved = localStorage.getItem(`chat_history_${cid}`);
         this.logs = saved ? JSON.parse(saved) : [];
     },
-    add: function(role, text) { this.logs.push({ role: role, text: text }); this.save(); },
-    save: function() { const cid = characterManager.currentId; if(cid) localStorage.setItem(`chat_history_${cid}`, JSON.stringify(this.logs)); },
-    clear: function() {
-        const cid = characterManager.currentId;
-        if(cid) { this.logs = []; this.save(); aiEngine.clearContext(); localStorage.removeItem(`last_interaction_${cid}`); alert("记忆已清空"); this.hide(); }
+
+    add: function(role, text) { 
+        this.logs.push({ role: role, text: text }); 
+        this.save(); 
     },
+
+    save: function() { 
+        const cid = characterManager.currentId; 
+        if(cid) localStorage.setItem(`chat_history_${cid}`, JSON.stringify(this.logs)); 
+    },
+
     show: function() {
-        const container = document.getElementById('history-list'); container.innerHTML = "";
-        if (this.logs.length === 0) container.innerHTML = `<div class="text-center text-gray-700 text-xs mt-10">暂无记录</div>`;
-        this.logs.forEach(log => {
-            const div = document.createElement('div'); div.className = "log-item";
-            let roleName = "你", roleClass = "user";
+        this.activeIndex = null; // 重置展开状态
+        this.isBatchMode = false;
+        this.selectedSet.clear();
+        this.updateUIState();
+        this.renderList();
+        
+        document.getElementById('history-modal').classList.remove('opacity-0', 'pointer-events-none');
+        document.getElementById('history-modal').classList.add('modal-open');
+    },
+
+    hide: function() { 
+        document.getElementById('history-modal').classList.add('opacity-0', 'pointer-events-none');
+        document.getElementById('history-modal').classList.remove('modal-open');
+        this.exitBatchMode();
+    },
+
+    renderList: function() {
+        const container = document.getElementById('history-list');
+        container.innerHTML = "";
+        
+        if (this.logs.length === 0) {
+            container.innerHTML = `<div class="text-center text-gray-700 text-xs mt-10">暂无记录</div>`;
+            return;
+        }
+
+        this.logs.forEach((log, index) => {
+            const div = document.createElement('div');
+            
+            // 基础样式
+            let className = "log-item";
+            if (this.activeIndex === index && !this.isBatchMode) className += " active-item";
+            if (this.isBatchMode) className += " batch-mode-layout";
+            div.className = className;
+
+            // 角色判断
             const char = characterManager.getCurrent();
+            let roleName = "你", roleClass = "user";
             if (log.role === 'dialogue' || log.role === 'assistant') { roleName = char ? char.name : "AI"; roleClass = "ai"; }
             else if (log.role === 'narration') { roleName = "旁白"; roleClass = "narr"; }
-            if (log.role === 'user') roleName = char ? char.userName : "你";
-            div.innerHTML = `<span class="log-role ${roleClass}">${roleName}</span><div class="log-text">${log.text}</div>`;
+            else if (log.role === 'user') { roleName = char ? char.userName : "你"; }
+
+            // === 1. 构建 HTML 内容 ===
+            let html = ``;
+            
+            // 多选模式：左侧复选框
+            if (this.isBatchMode) {
+                const isChecked = this.selectedSet.has(index);
+                html += `
+                <div class="checkbox-overlay" onclick="historyManager.toggleSelection(${index})">
+                    <div class="custom-checkbox ${isChecked ? 'checked' : ''}">
+                        <i class="ph ph-check"></i>
+                    </div>
+                </div>`;
+            }
+
+            // 正常内容
+            html += `
+            <div onclick="historyManager.toggleHud(${index})">
+                <span class="log-role ${roleClass}">${roleName}</span>
+                <div class="log-text">${log.text}</div>
+            </div>`;
+
+            // HUD 工具栏 (仅在单选激活时显示)
+            if (this.activeIndex === index && !this.isBatchMode) {
+                html += `
+                <div class="hud-toolbar">
+                    <button class="hud-btn" onclick="historyManager.startEdit(${index})"><i class="ph ph-pencil-simple"></i> 编辑</button>
+                    ${log.role !== 'user' ? `<button class="hud-btn" onclick="historyManager.regenerateFrom(${index})"><i class="ph ph-arrows-clockwise"></i> 重生成</button>` : ''}
+                    <button class="hud-btn" onclick="historyManager.enterBatchMode()"><i class="ph ph-checks"></i> 多选</button>
+                    <button class="hud-btn delete-btn" onclick="historyManager.deleteSingle(${index})" style="margin-left:auto"><i class="ph ph-trash"></i></button>
+                </div>`;
+            }
+
+            div.innerHTML = html;
             container.appendChild(div);
         });
-        document.getElementById('history-modal').classList.add('modal-open');
-        setTimeout(() => { container.scrollTop = container.scrollHeight; }, 100);
+
+        // 如果是多选模式，滚动条不要自动到底，保持用户视野
+        if (!this.isBatchMode) {
+            // setTimeout(() => { container.scrollTop = container.scrollHeight; }, 50);
+        }
     },
-    hide: function() { document.getElementById('history-modal').classList.remove('modal-open'); }
+
+    toggleHud: function(index) {
+        if (this.isBatchMode) return; 
+        
+        // 如果点击已展开的，则收起；否则展开新的
+        if (this.activeIndex === index) {
+            this.activeIndex = null;
+        } else {
+            this.activeIndex = index;
+        }
+        this.renderList();
+    },
+
+    startEdit: function(index) {
+        const newText = prompt("编辑内容:", this.logs[index].text);
+        if (newText !== null && newText.trim() !== "") {
+            this.logs[index].text = newText;
+            this.save();
+            // 如果是最近一条，可能需要更新上下文，这里简单处理
+            if (index === this.logs.length - 1) {
+                aiEngine.history[aiEngine.history.length-1].content = newText;
+                aiEngine.saveContext();
+            }
+            this.renderList();
+        }
+    },
+
+    deleteSingle: function(index) {
+        if (confirm("确定删除这条记录？")) {
+            this.logs.splice(index, 1);
+            this.save();
+            this.activeIndex = null;
+            
+            // 同步删除 AI 上下文 (简单策略：重置上下文，让 AI 重新读取历史)
+            // 为了保持一致性，建议删除后只保留 history logs，清除 ai context
+            // 这样下次对话时 AI 会重新读取 logs 构建 context
+            aiEngine.clearContext(); 
+            
+            this.renderList();
+        }
+    },
+
+    // 重生成：删除当前及以后的所有记录，并重新触发 AI
+    regenerateFrom: function(index) {
+        if (!confirm("确定要回溯到这里并重新生成吗？\n(这之后的记录将消失)")) return;
+
+        // 1. 获取上一条记录作为 prompt (如果是 AI 回复，说明上一条是 User)
+        // 这里的逻辑是：回滚到 index 之前
+        this.logs = this.logs.slice(0, index);
+        this.save();
+        
+        // 2. 清除上下文，强制重载
+        aiEngine.clearContext();
+        
+        // 3. 关闭窗口，触发生成
+        this.hide();
+        aiEngine.init(); // 重新加载 log 到 context
+        aiEngine.triggerResponse(); // 触发回复
+    },
+
+    // ----------------------------------
+    // 多选 (Batch) 模式逻辑
+    // ----------------------------------
+    enterBatchMode: function() {
+        this.isBatchMode = true;
+        this.activeIndex = null; // 关闭 HUD
+        // 默认选中刚才那个
+        // this.selectedSet.add(this.activeIndex); 
+        this.updateUIState();
+        this.renderList();
+    },
+
+    exitBatchMode: function() {
+        this.isBatchMode = false;
+        this.selectedSet.clear();
+        this.updateUIState();
+        this.renderList();
+    },
+
+    toggleSelection: function(index) {
+        if (this.selectedSet.has(index)) {
+            this.selectedSet.delete(index);
+        } else {
+            this.selectedSet.add(index);
+        }
+        this.updateUIState();
+        this.renderList(); // 重新渲染复选框状态
+    },
+
+    updateUIState: function() {
+        const bar = document.getElementById('batch-bar');
+        const fab = document.getElementById('batch-delete-fab');
+        const countSpan = document.getElementById('batch-count');
+
+        if (this.isBatchMode) {
+            bar.classList.add('show');
+            countSpan.innerText = `已选择 ${this.selectedSet.size} 项`;
+            if (this.selectedSet.size > 0) fab.classList.add('show');
+            else fab.classList.remove('show');
+        } else {
+            bar.classList.remove('show');
+            fab.classList.remove('show');
+        }
+    },
+
+    deleteBatch: function() {
+        if (this.selectedSet.size === 0) return;
+        if (confirm(`确定删除选中的 ${this.selectedSet.size} 条记录？`)) {
+            // 从后往前删，防止索引偏移
+            const sortedIndices = Array.from(this.selectedSet).sort((a, b) => b - a);
+            sortedIndices.forEach(idx => {
+                this.logs.splice(idx, 1);
+            });
+            
+            this.save();
+            aiEngine.clearContext(); // 变动太大，重置 AI 记忆缓存
+            this.exitBatchMode();
+        }
+    },
+    
+    // 清空全部 (保留原有功能)
+    clear: function() {
+        const cid = characterManager.currentId;
+        if(confirm("确定清空所有记忆？此操作无法撤销。")) { 
+            this.logs = []; 
+            this.save(); 
+            aiEngine.clearContext(); 
+            localStorage.removeItem(`last_interaction_${cid}`); 
+            this.hide();
+            // 重置界面
+            document.getElementById('dialogue-text').innerText = "...";
+        }
+    }
 };
 
 // ==========================================
