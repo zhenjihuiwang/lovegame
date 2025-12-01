@@ -127,7 +127,7 @@ const tagManager = {
 };
 
 // ==========================================
-// 3. 素材管理器
+// 3. 素材管理器 
 // ==========================================
 const assetManager = {
     cache: { char: {}, bg: {}, bgm: {}, sfx: {} }, allItems: [], currentFilter: 'all', currentEditingId: null,
@@ -144,7 +144,8 @@ const assetManager = {
             const isMine = currentId && item.ownerId === currentId;
             if (isGlobal || isMine) {
                 const url = URL.createObjectURL(item.blob);
-                let type = item.type === 'audio' ? 'bgm' : item.type;
+                // 确保音频类有缓存
+                let type = item.type === 'audio' ? 'bgm' : item.type; 
                 if (!this.cache[type]) this.cache[type] = {};
                 if (!this.cache[type][item.tag] || isMine) { this.cache[type][item.tag] = url; }
             }
@@ -152,20 +153,32 @@ const assetManager = {
         this.renderList();
     },
     
+    // 【修改】筛选列表渲染逻辑
     renderList: function() {
         const listEl = document.getElementById('assets-list');
         const searchInput = document.getElementById('asset-search');
         if(!listEl) return;
         listEl.innerHTML = "";
         const keyword = searchInput ? searchInput.value.toLowerCase() : "";
+        
         this.allItems.forEach(item => {
             let typeMatch = this.currentFilter === 'all';
-            if (this.currentFilter === 'audio') typeMatch = (item.type === 'bgm' || item.type === 'sfx' || item.type === 'audio');
-            else if (this.currentFilter !== 'all') typeMatch = (item.type === this.currentFilter);
+
+            // 逻辑修改：不再混合音频，而是精确匹配 bgm 或 sfx
+            if (this.currentFilter !== 'all') {
+                // 如果是旧数据（类型叫audio），我们在筛选 BGM 时也显示它，防止旧素材消失
+                if (this.currentFilter === 'bgm' && item.type === 'audio') {
+                    typeMatch = true; 
+                } else {
+                    typeMatch = (item.type === this.currentFilter);
+                }
+            }
+
             const isGlobal = !item.ownerId || item.ownerId === 'global';
             const isMine = characterManager.currentId && item.ownerId === characterManager.currentId;
             const scopeMatch = isGlobal || isMine;
             const keywordMatch = item.tag.toLowerCase().includes(keyword);
+
             if (typeMatch && scopeMatch && keywordMatch) {
                 const url = URL.createObjectURL(item.blob);
                 this.createAssetCard(item, url, listEl, isGlobal ? 'G' : 'L');
@@ -178,69 +191,127 @@ const assetManager = {
         div.className = "relative aspect-square bg-white/5 border border-white/10 group cursor-pointer hover:border-[#D4AF37] transition";
         div.onclick = () => this.openModal(item, url);
         let icon = "";
-        if(item.type === 'bgm') icon = '<i class="ph ph-music-notes text-2xl text-blue-400"></i>';
+        // 根据不同类型显示不同图标
+        if(item.type === 'bgm' || item.type === 'audio') icon = '<i class="ph ph-music-notes text-2xl text-blue-400"></i>';
         else if(item.type === 'sfx') icon = '<i class="ph ph-waves text-2xl text-green-400"></i>';
-        else if(item.type === 'audio') icon = '<i class="ph ph-speaker-high text-2xl"></i>';
         else icon = `<img src="${url}" class="w-full h-full object-cover grayscale group-hover:grayscale-0 transition">`;
+        
         div.innerHTML = item.type.includes('char') || item.type.includes('bg') ? icon : `<div class="w-full h-full flex items-center justify-center text-white/50">${icon}</div>`;
         const badgeColor = badge === 'G' ? 'text-gray-500' : 'text-[#D4AF37]';
         div.innerHTML += `<div class="absolute top-1 right-1 text-[8px] font-bold ${badgeColor}">${badge}</div><div class="absolute bottom-0 inset-x-0 bg-black/80 text-[9px] text-gray-300 text-center py-1 font-mono truncate px-1">${item.tag}</div>`;
         container.appendChild(div);
     },
+
     filter: function(type) {
         this.currentFilter = type;
         document.querySelectorAll('.filter-chip').forEach(btn => {
-            btn.classList.remove('active'); if(btn.dataset.filter === type) btn.classList.add('active');
+            btn.classList.remove('active'); 
+            if(btn.dataset.filter === type) btn.classList.add('active');
         });
         this.renderList();
     },
+
     openModal: function(item, url) {
         this.currentEditingId = item.id;
         const modal = document.getElementById('asset-modal');
         const preview = document.getElementById('asset-preview-area');
         const tagInput = document.getElementById('edit-asset-tag');
-        if (item.type.includes('bg') || item.type.includes('char')) { preview.innerHTML = `<img src="${url}" class="h-full object-contain">`; } 
-        else { preview.innerHTML = `<div class="text-center"><i class="ph ph-play-circle text-4xl text-[#D4AF37] cursor-pointer hover:scale-110 transition" onclick="new Audio('${url}').play()"></i><p class="text-[10px] text-gray-500 mt-2">点击试听</p></div>`; }
+        const typeInput = document.getElementById('edit-asset-type');
+        
+        if (item.type.includes('bg') || item.type.includes('char')) { 
+            preview.innerHTML = `<img src="${url}" class="h-full object-contain">`; 
+        } else { 
+            preview.innerHTML = `<div class="text-center"><i class="ph ph-play-circle text-4xl text-[#D4AF37] cursor-pointer hover:scale-110 transition" onclick="new Audio('${url}').play()"></i><p class="text-[10px] text-gray-500 mt-2">点击试听</p></div>`; 
+        }
+        
         tagInput.value = item.tag;
+        if(typeInput) typeInput.value = item.type;
+
         const isGlobal = !item.ownerId || item.ownerId === 'global';
         this.setEditScope(isGlobal ? 'global' : 'local');
+        
         modal.style.opacity = "1"; modal.style.pointerEvents = "auto";
-        tagManager.renderAll(); // 刷新标签库
+        tagManager.renderAll(); 
     },
+
     closeModal: function() {
         const modal = document.getElementById('asset-modal');
         modal.style.opacity = "0"; modal.style.pointerEvents = "none"; this.currentEditingId = null;
     },
+
     setEditScope: function(scope) {
         const btnGlobal = document.getElementById('scope-btn-global');
         const btnLocal = document.getElementById('scope-btn-local');
-        btnGlobal.classList.remove('active'); btnLocal.classList.remove('active');
-        if (scope === 'global') btnGlobal.classList.add('active'); else btnLocal.classList.add('active');
+        if(btnGlobal) btnGlobal.classList.remove('active'); 
+        if(btnLocal) btnLocal.classList.remove('active');
+        if (scope === 'global' && btnGlobal) btnGlobal.classList.add('active'); 
+        else if (btnLocal) btnLocal.classList.add('active');
         document.getElementById('asset-modal').dataset.scope = scope;
     },
+
     saveChanges: async function() {
         if (!this.currentEditingId) return;
         const tag = document.getElementById('edit-asset-tag').value.trim();
+        const type = document.getElementById('edit-asset-type').value;
         const scope = document.getElementById('asset-modal').dataset.scope;
         const ownerId = scope === 'global' ? 'global' : characterManager.currentId;
+        
         if (!tag) return alert("标签不能为空");
-        try { await dbSystem.updateAsset(this.currentEditingId, { tag: tag, ownerId: ownerId }); this.closeModal(); this.refreshCache(); } 
-        catch (e) { alert("更新失败"); }
+        
+        try { 
+            await dbSystem.updateAsset(this.currentEditingId, { tag: tag, type: type, ownerId: ownerId }); 
+            this.closeModal(); 
+            this.refreshCache(); 
+        } catch (e) { alert("更新失败"); }
     },
+
     deleteAsset: async function() {
         if (!this.currentEditingId) return;
         if (confirm("确定永久删除此素材？")) { await dbSystem.deleteAsset(this.currentEditingId); this.closeModal(); this.refreshCache(); }
     },
+
     handleQuickUpload: async function(input) {
-        const file = input.files[0]; if(!file) return;
-        let type = 'bg'; 
-        if (file.type.startsWith('audio')) type = 'bgm'; 
-        else if (file.name.includes('char') || file.name.includes('sprite')) type = 'char';
-        const tag = file.name.split('.')[0];
-        const ownerId = characterManager.currentId || 'global';
-        try { await dbSystem.saveAsset(type, tag, file, ownerId); alert("上传成功，请编辑分类"); this.refreshCache(); } 
-        catch(e) { alert("上传失败"); }
-        input.value = "";
+        const files = input.files; 
+        if (!files || files.length === 0) return;
+
+        const type = document.getElementById('upload-type').value;
+        const inputTag = document.getElementById('upload-tag').value.trim();
+        const isExclusive = document.getElementById('upload-exclusive').checked;
+        const ownerId = isExclusive ? characterManager.currentId : 'global';
+
+        if (isExclusive && !characterManager.currentId) {
+            alert("请先选择角色才能上传专属素材");
+            input.value = "";
+            return;
+        }
+
+        let successCount = 0;
+        
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            let finalTag = "";
+            if (!inputTag) {
+                finalTag = file.name.split('.').slice(0, -1).join('.') || file.name;
+            } else {
+                if (files.length > 1) {
+                    finalTag = `${inputTag}_${i + 1}`;
+                } else {
+                    finalTag = inputTag;
+                }
+            }
+
+            try {
+                await dbSystem.saveAsset(type, finalTag, file, ownerId);
+                successCount++;
+            } catch (e) {
+                console.error(`File ${file.name} upload failed`);
+            }
+        }
+
+        alert(`成功上传 ${successCount} 个素材到 [${type}] 分类！`);
+        this.refreshCache();
+        document.getElementById('upload-tag').value = ""; 
+        input.value = ""; 
     }
 };
 

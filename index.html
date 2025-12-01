@@ -116,38 +116,56 @@
 </button>
         </div>
 
-        <!-- 素材卡片 -->
-        <div id="asset-modal" class="absolute inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center transition-opacity duration-200 opacity-0 pointer-events-none">
-            <div class="asset-card" onclick="event.stopPropagation()">
-                <div id="asset-preview-area" class="w-full h-48 bg-[#111] flex items-center justify-center border-b border-white/10 relative overflow-hidden"></div>
-                <div class="p-6 space-y-4">
-                    <div class="input-group">
-                        <label class="flex justify-between">
-                            <span>TAG (标签)</span>
-                            <span class="text-[9px] text-gray-500">点击下方添加</span>
-                        </label>
-                        <div class="flex items-center border-b border-white/30 pb-1 gap-2">
-                            <i class="ph ph-tag text-gray-500"></i>
-                            <input type="text" id="edit-asset-tag" class="bg-transparent border-none text-white text-sm w-full focus:outline-none font-mono" autocomplete="off">
-                            <button onclick="tagManager.addFromInput('edit-asset-tag')" class="text-[#D4AF37] hover:text-white text-xs"><i class="ph ph-plus"></i></button>
-                        </div>
-                        <div id="edit-tag-bank" class="flex gap-2 mt-2 overflow-x-auto pb-1 scrollbar-hide h-8 items-center"></div>
-                    </div>
-                    <div class="input-group">
-                        <label>SCOPE (归属)</label>
-                        <div class="flex gap-2 mt-2">
-                            <button onclick="assetManager.setEditScope('global')" id="scope-btn-global" class="scope-chip"><i class="ph ph-globe"></i> 全局通用</button>
-                            <button onclick="assetManager.setEditScope('local')" id="scope-btn-local" class="scope-chip"><i class="ph ph-user"></i> 角色专属</button>
-                        </div>
-                    </div>
-                    <div class="flex gap-3 pt-2">
-                        <button onclick="assetManager.deleteAsset()" class="flex-1 border border-red-900/50 text-red-700 hover:bg-red-900/20 py-2 text-xs tracking-widest transition">DELETE</button>
-                        <button onclick="assetManager.saveChanges()" class="flex-[2] bg-[#D4AF37] text-black font-bold py-2 text-xs tracking-widest hover:opacity-90 transition">SAVE CHANGES</button>
-                    </div>
+        <!-- 素材编辑 -->
+<div id="asset-modal" class="absolute inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center transition-opacity duration-200 opacity-0 pointer-events-none">
+    <div class="asset-card" onclick="event.stopPropagation()">
+        <!-- 预览区 -->
+        <div id="asset-preview-area" class="w-full h-48 bg-[#111] flex items-center justify-center border-b border-white/10 relative overflow-hidden"></div>
+        
+        <div class="p-6 space-y-4">
+            <!-- 1. 修改分类 (新增功能) -->
+            <div class="input-group">
+                <label>TYPE (分类)</label>
+                <select id="edit-asset-type" class="mono-input mt-1">
+                    <option value="char">立绘 (Char)</option>
+                    <option value="bg">背景 (Bg)</option>
+                    <option value="bgm">BGM</option>
+                    <option value="sfx">音效 (SFX)</option>
+                </select>
+            </div>
+
+            <!-- 2. 修改标签 -->
+            <div class="input-group">
+                <label class="flex justify-between">
+                    <span>TAG (标签)</span>
+                    <span class="text-[9px] text-gray-500">点击下方添加</span>
+                </label>
+                <div class="flex items-center border-b border-white/30 pb-1 gap-2">
+                    <i class="ph ph-tag text-gray-500"></i>
+                    <input type="text" id="edit-asset-tag" class="bg-transparent border-none text-white text-sm w-full focus:outline-none font-mono" autocomplete="off">
+                    <button onclick="tagManager.addFromInput('edit-asset-tag')" class="text-[#D4AF37] hover:text-white text-xs"><i class="ph ph-plus"></i></button>
                 </div>
-                <button onclick="assetManager.closeModal()" class="absolute top-2 right-2 text-white/50 hover:text-white bg-black/50 rounded-full p-1"><i class="ph ph-x"></i></button>
+                <div id="edit-tag-bank" class="flex gap-2 mt-2 overflow-x-auto pb-1 scrollbar-hide h-8 items-center"></div>
+            </div>
+
+            <!-- 3. 修改归属 -->
+            <div class="input-group">
+                <label>SCOPE (归属)</label>
+                <div class="flex gap-2 mt-2">
+                    <button onclick="assetManager.setEditScope('global')" id="scope-btn-global" class="scope-chip"><i class="ph ph-globe"></i> 全局通用</button>
+                    <button onclick="assetManager.setEditScope('local')" id="scope-btn-local" class="scope-chip"><i class="ph ph-user"></i> 角色专属</button>
+                </div>
+            </div>
+
+            <!-- 按钮组 -->
+            <div class="flex gap-3 pt-2">
+                <button onclick="assetManager.deleteAsset()" class="flex-1 border border-red-900/50 text-red-700 hover:bg-red-900/20 py-2 text-xs tracking-widest transition">DELETE</button>
+                <button onclick="assetManager.saveChanges()" class="flex-[2] bg-[#D4AF37] text-black font-bold py-2 text-xs tracking-widest hover:opacity-90 transition">SAVE CHANGES</button>
             </div>
         </div>
+        <button onclick="assetManager.closeModal()" class="absolute top-2 right-2 text-white/50 hover:text-white bg-black/50 rounded-full p-1"><i class="ph ph-x"></i></button>
+    </div>
+</div>
 
         <!-- 设置面板 -->
         <div id="settings-modal" class="absolute inset-0 z-50 bg-[#050505] transition-transform duration-300 translate-y-full flex flex-col">
@@ -234,11 +252,12 @@
                 <!-- Tab 3: Assets -->
                 <div id="tab-assets" class="tab-content hidden flex flex-col h-full">
                     <div class="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
-                        <button onclick="assetManager.filter('all')" class="filter-chip active" data-filter="all">全部</button>
-                        <button onclick="assetManager.filter('char')" class="filter-chip" data-filter="char">立绘</button>
-                        <button onclick="assetManager.filter('bg')" class="filter-chip" data-filter="bg">背景</button>
-                        <button onclick="assetManager.filter('audio')" class="filter-chip" data-filter="audio">音频</button>
-                    </div>
+    <button onclick="assetManager.filter('all')" class="filter-chip active" data-filter="all">全部</button>
+    <button onclick="assetManager.filter('char')" class="filter-chip" data-filter="char">立绘</button>
+    <button onclick="assetManager.filter('bg')" class="filter-chip" data-filter="bg">背景</button>
+    <button onclick="assetManager.filter('bgm')" class="filter-chip" data-filter="bgm">音乐 (BGM)</button>
+    <button onclick="assetManager.filter('sfx')" class="filter-chip" data-filter="sfx">音效 (SFX)</button>
+</div>
                     <div class="flex gap-2 mb-4">
                         <div class="flex-1 relative">
                             <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs"></i>
@@ -269,7 +288,7 @@
                             <button onclick="document.getElementById('upload-file').click()" class="bg-[#D4AF37] text-black px-4 py-1 text-xs font-bold hover:opacity-90 flex items-center gap-1">
                                 <i class="ph ph-upload-simple"></i> 上传文件
                             </button>
-                            <input type="file" id="upload-file" class="hidden" onchange="assetManager.handleQuickUpload(this)">
+                            <input type="file" id="upload-file" class="hidden" multiple onchange="assetManager.handleQuickUpload(this)">
                         </div>
                     </div>
                     <div id="assets-list" class="flex-1 overflow-y-auto grid grid-cols-3 gap-3 content-start pr-1 pb-10"></div>
