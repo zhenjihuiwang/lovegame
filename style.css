@@ -70,7 +70,8 @@ body { background-color: #000; overflow: hidden; font-family: "PingFang SC", "Mi
 .tab-btn { font-size: 12px; color: #444; padding-bottom: 4px; letter-spacing: 1px; }
 .tab-btn.active { color: #D4AF37; border-bottom: 1px solid #D4AF37; }
 .scrollbar-hide::-webkit-scrollbar { display: none; }
-.modal-open { opacity: 1 !important; pointer-events: auto !important; transform: translateY(0) !important; }
+.modal-open { opacity: 1 !important; pointer-events: auto !important; transform: translateY(0) !important;visibility: visible !important; }
+#journal-modal {transition: opacity 0.3s ease, visibility 0.3s ease;}
 .section-title { color: #D4AF37; font-size: 10px; letter-spacing: 2px; font-weight: 600; border-bottom: 1px solid #333; padding-bottom: 8px; margin-bottom: 12px; }
 .log-item { margin-bottom: 24px; border-left: 1px solid rgba(255,255,255,0.1); padding-left: 16px; }
 .log-role { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; display: block; }
@@ -315,3 +316,578 @@ body { background-color: #000; overflow: hidden; font-family: "PingFang SC", "Mi
 }
 @keyframes noise-move { 0% { transform: translate(0,0); } 100% { transform: translate(10px, 10px); } }
 @keyframes scratch-move { 0% { left: 5%; opacity: 0; } 30% { opacity: 0.4; } 60% {opacity:0;} 100% { left: 90%; opacity: 0; } }
+
+/* =========================================
+   15. 日记系统样式 (Journal)
+   ========================================= */
+#view-diary {
+    background-color: #050505; /* 确保背景纯黑 */
+}
+
+/* 字体强制使用衬线体，营造杂志感 */
+#noir-body, #noir-title, #noir-day, #noir-month {
+    font-family: "Noto Serif SC", serif;
+}
+
+/* 正文段落样式优化 */
+#noir-body p {
+    margin-bottom: 1.5em;
+    color: #b0b0b0;
+}
+
+/* 首段首字下沉 (可选，增加高级感) */
+#noir-body p:first-of-type::first-letter {
+    float: left;
+    font-size: 3.5em;
+    line-height: 0.8;
+    padding-right: 8px;
+    padding-left: 4px;
+    color: #D4AF37;
+    font-family: serif;
+}
+
+/* 简单的淡入动画 */
+@keyframes fade-in-up {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+    animation: fade-in-up 1s ease-out forwards;
+}
+
+/* 移动端适配调整 */
+@media (max-width: 768px) {
+    #noir-bg-year {
+        right: -10px;
+        top: 60px; /* 避开手机顶部 */
+        opacity: 0.3;
+    }
+}
+
+/* 时间轴样式 */
+.timeline-item {
+    position: relative; padding-left: 20px; cursor: pointer; transition: all 0.3s;
+}
+.timeline-item::before {
+    content: ''; position: absolute; left: 0; top: 6px;
+    width: 6px; height: 6px; background: #333; border-radius: 50%; transition: all 0.3s;
+}
+.timeline-item:hover::before { background: #666; }
+.timeline-item.active::before { background: #D4AF37; box-shadow: 0 0 8px #D4AF37; transform: scale(1.5); }
+.timeline-item.active .timeline-date { color: #fff; }
+.timeline-date { color: #666; font-size: 14px; font-family: serif; }
+.timeline-title { color: #444; font-size: 10px; display: block; margin-top: 2px; }
+.timeline-has-diary { color: #D4AF37; position: absolute; right: 0; top: 4px; font-size: 10px; }
+
+/* 记忆节点样式 */
+.memory-node { position: relative; }
+.memory-node::before {
+    content: ''; position: absolute; left: -21px; top: 8px;
+    width: 8px; height: 8px; background: #111; border: 1px solid #555; border-radius: 50%;
+}
+/* Memory Core Timeline Styles */
+.mem-node {
+    position: relative;
+    padding-left: 24px;
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+    animation: fade-in-up 0.5s ease forwards;
+}
+
+/* 时间轴上的圆点 */
+.mem-node::before {
+    content: '';
+    position: absolute;
+    left: -4px; /* 线条宽度1px，居中偏移 */
+    top: 0;
+    width: 7px;
+    height: 7px;
+    background: #000;
+    border: 1px solid #D4AF37;
+    border-radius: 50%;
+    box-shadow: 0 0 5px rgba(212, 175, 55, 0.3);
+}
+
+/* 日期标签 */
+.mem-date {
+    display: inline-block;
+    background: rgba(212, 175, 55, 0.1);
+    color: #D4AF37;
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 2px;
+    margin-bottom: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 1px;
+}
+
+/* 记忆文本 */
+.mem-text {
+    font-size: 13px;
+    color: #ccc;
+    line-height: 1.6;
+    font-family: "Noto Serif SC", serif;
+    text-align: justify;
+}
+
+/* 最后一个节点的线变成渐隐 */
+.mem-node:last-child {
+    border-left-color: transparent;
+    border-image: linear-gradient(to bottom, rgba(255,255,255,0.1), transparent) 1 100%;
+}
+
+/* 统计信息 */
+#mem-usage-display { font-family: monospace; }
+
+/* --- START OF ADDED CSS (修复记忆界面不显示的问题) --- */
+
+/* 视图激活状态：显示、层级最高 */
+.view-active {
+    opacity: 1 !important;
+    transform: translateY(0) !important;
+    z-index: 20 !important;
+}
+.modal-open .view-active {
+    pointer-events: auto !important;
+    visibility: visible !important;
+}
+/* 视图隐藏状态：透明、下沉、不可点击 */
+.view-hidden {
+    opacity: 0 !important;
+    transform: translateY(10px) !important;
+    pointer-events: none !important;
+    visibility: hidden !important;
+    z-index: 0 !important;
+}
+
+/* 确保记忆界面的内容区域能正常滚动 */
+#memory-timeline-view {
+    padding-bottom: 80px; /* 防止底部被遮挡 */
+}
+
+/*全新备忘录模块样式 (替换旧版)*/
+/* ---整体布局 --- */
+#app-memo { background-color: #0a0a0a; }
+
+.memo-app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    background: #111;
+    flex-shrink: 0;
+}
+.memo-app-title {
+    color: #D4AF37;
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin: 0;
+}
+.memo-back-btn {
+    color: #888; background: none; border: none; font-size: 18px; cursor: pointer;
+}
+.memo-add-btn {
+    background: #D4AF37; color: #000; border: none; border-radius: 50%;
+    width: 24px; height: 24px; font-size: 18px;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    transition: transform 0.2s ease;
+}
+.memo-add-btn:hover { transform: scale(1.1); }
+
+
+/* --- 搜索与筛选 --- */
+.memo-controls {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    border-bottom: 1px solid #222;
+    flex-shrink: 0;
+}
+.search-bar { position: relative; }
+.search-bar i {
+    position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+    color: #555; font-size: 16px; pointer-events: none;
+}
+.search-input {
+    width: 100%; background: #111; border: 1px solid #333;
+    border-radius: 20px; padding: 10px 18px 10px 40px; color: #eee;
+    font-size: 13px; box-sizing: border-box; transition: border-color 0.2s;
+}
+.search-input:focus { outline: none; border-color: #D4AF37; }
+.filter-chips {
+    display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px;
+}
+.filter-chips::-webkit-scrollbar { display: none; }
+
+
+/* --- 备忘录卡片列表 --- */
+.memo-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.memo-card {
+    background: #111; border: 1px solid #222; border-radius: 8px;
+    padding: 16px; transition: all 0.3s ease; position: relative;
+    animation: memo-fade-in 0.4s ease forwards;
+}
+@keyframes memo-fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); }}
+
+.memo-card:hover { border-color: #D4AF37; }
+.memo-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.memo-card-icon { color: #D4AF37; font-size: 20px; }
+.memo-card-topic { color: #eee; font-size: 14px; font-weight: 600; flex-grow: 1; text-transform: uppercase; letter-spacing: 1px; }
+.memo-card-date { color: #666; font-size: 10px; }
+.memo-card-content {
+    color: #bbb; font-size: 14px; line-height: 1.7; font-family: 'Noto Serif SC', serif;
+    padding-left: 12px; border-left: 2px solid #222;
+}
+.memo-card-actions {
+    position: absolute; top: 12px; right: 12px;
+    display: flex; gap: 8px; opacity: 0; transition: opacity 0.2s ease;
+}
+.memo-card:hover .memo-card-actions { opacity: 1; }
+.memo-action-btn {
+    background: rgba(255, 255, 255, 0.05); border: 1px solid #333; border-radius: 50%;
+    width: 28px; height: 28px; color: #888; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; font-size: 14px;
+}
+.memo-action-btn:hover { background: #D4AF37; color: #000; }
+.memo-action-btn.delete:hover { background: #e53e3e; color: #fff; }
+.memo-empty-state { text-align: center; color: #555; font-size: 12px; margin-top: 40px; }
+
+
+/* --- 新增/编辑弹窗 (Modal) --- */
+.memo-modal-overlay {
+    position: fixed; inset: 0; z-index: 500;
+    background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(8px);
+    display: flex; align-items: center; justify-content: center; padding: 16px;
+    transition: opacity 0.3s ease;
+}
+.memo-modal-overlay.hidden { display: none; }
+.memo-modal-content {
+    background: #1a1a1a; border: 1px solid #333; border-radius: 12px;
+    width: 100%; max-width: 380px; box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    animation: slide-up 0.3s ease-out;
+}
+@keyframes slide-up { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+.memo-modal-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 24px; border-bottom: 1px solid #333;
+}
+.memo-modal-header h3 { color: #D4AF37; font-size: 16px; margin: 0; }
+.close-modal-btn {
+    color: #555; font-size: 24px; cursor: pointer; border: none; background: none;
+    transition: color 0.2s;
+}
+.close-modal-btn:hover { color: #fff; }
+
+/* --- 弹窗内的表单 --- */
+form { padding: 24px; }
+.form-group { margin-bottom: 20px; }
+.form-group label {
+    display: block; color: #888; font-size: 10px;
+    text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;
+}
+.form-select, .form-textarea {
+    width: 100%; background: #111; border: 1px solid #444; border-radius: 4px;
+    padding: 12px; color: #eee; font-size: 14px; box-sizing: border-box;
+    transition: border-color 0.2s;
+}
+.form-select:focus, .form-textarea:focus { outline: none; border-color: #D4AF37; }
+.form-textarea { min-height: 120px; resize: vertical; font-family: 'Noto Serif SC', serif; }
+
+/* --- 弹窗内的按钮 --- */
+.form-actions { display: flex; gap: 12px; margin-top: 24px; }
+.action-btn {
+    flex-grow: 1; padding: 12px; border-radius: 4px; border: none;
+    font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity 0.2s;
+}
+.action-btn:hover { opacity: 0.9; }
+.btn-primary { background: #D4AF37; color: #000; }
+.btn-secondary { background: #333; color: #aaa; }
+
+/* =========================================
+   日记界面 Header 及日历弹窗样式 (V2)
+   ========================================= */
+
+/* --- 新版 Header 样式 --- */
+.date-selector-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background-color: transparent;
+    border: 1px solid transparent;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.date-selector-btn:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: #333;
+}
+.date-display-text {
+    color: #eee;
+    font-size: 18px;
+    font-family: "Noto Serif SC", serif;
+    font-weight: 600;
+}
+.view-switch-container {
+    display: flex;
+    background: #000;
+    border: 1px solid #333;
+    border-radius: 20px;
+    padding: 4px;
+}
+.view-switch-btn {
+    background: transparent;
+    border: none;
+    color: #888;
+    padding: 6px 12px;
+    font-size: 18px;
+    cursor: pointer;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s;
+}
+.view-switch-btn.active-switch {
+    background: #D4AF37;
+    color: #000;
+}
+/* 移除旧的 active-switch 样式以避免冲突 */
+button.active-switch { color: #000 !important; }
+
+
+/* --- 日历弹窗样式 --- */
+#calendar-modal { transition: opacity 0.2s ease, visibility 0.2s ease; }
+.calendar-container {
+    background: #1a1a1a;
+    border-radius: 12px;
+    padding: 20px;
+    width: 100%;
+    max-width: 350px;
+    border: 1px solid #333;
+    box-shadow: 0 10px 50px rgba(0,0,0,0.5);
+    animation: calendar-scale-up 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+@keyframes calendar-scale-up { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; }}
+
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 0 8px;
+}
+.month-display-text {
+    color: #D4AF37;
+    font-size: 16px;
+    font-weight: bold;
+    font-family: sans-serif;
+}
+.calendar-nav-arrow {
+    background: none;
+    border: none;
+    color: #888;
+    font-size: 24px;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+.calendar-nav-arrow:hover { color: #fff; }
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+}
+.weekday {
+    text-align: center;
+    font-size: 10px;
+    color: #666;
+    margin-bottom: 10px;
+}
+.day-cell {
+    height: 42px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    cursor: pointer;
+    position: relative;
+    transition: background-color 0.2s;
+    border: 2px solid transparent;
+}
+.day-cell.other-month .day-number { color: #444; }
+.day-cell:hover { background-color: #333; }
+.day-cell.today .day-number { font-weight: bold; color: #D4AF37; }
+.day-cell.selected { border-color: #D4AF37; background-color: rgba(212, 175, 55, 0.1); }
+.day-number { font-size: 13px; }
+
+.day-indicators {
+    display: flex;
+    gap: 3px;
+    position: absolute;
+    bottom: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+.dot { width: 4px; height: 4px; border-radius: 50%; }
+.dot-diary { background-color: #D4AF37; }
+.dot-memory { background-color: #87CEEB; /* SkyBlue */ }
+
+.calendar-legend {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-top: 20px;
+    padding-top: 12px;
+    border-top: 1px solid #222;
+}
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 10px; color: #777; }
+.legend-dot { width: 6px; height: 6px; border-radius: 50%; }
+/* =========================================
+   日记刷新与评论功能样式 (原型A)
+   ========================================= */
+
+/* --- 1. 日记末尾的操作区 --- */
+.diary-actions-footer {
+    margin-top: 48px;
+    padding-top: 24px;
+    border-top: 1px solid #222;
+    display: flex;
+    justify-content: flex-end; /* 按钮靠右 */
+    min-height: 40px; /* 避免布局跳动 */
+}
+.refresh-button {
+    background: none;
+    border: 1px solid #444;
+    color: #888;
+    padding: 8px 16px;
+    font-size: 12px;
+    font-family: sans-serif;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.3s;
+    border-radius: 4px;
+}
+.refresh-button:hover {
+    border-color: #D4AF37;
+    color: #D4AF37;
+    background-color: rgba(212, 175, 55, 0.05);
+}
+.refresh-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.refresh-button i {
+    font-size: 16px;
+}
+.refresh-button.loading i {
+    animation: rotate-sparkle 1.5s linear infinite;
+}
+
+/* --- 2. 评论区 --- */
+.comment-section {
+    margin-top: 48px;
+    padding-top: 32px;
+    border-top: 1px dashed #333;
+}
+.comment-section-title {
+    font-size: 16px;
+    color: #D4AF37;
+    font-style: italic;
+    margin-bottom: 24px;
+}
+
+/* --- 评论对话线程 --- */
+.comment-thread {
+    margin-bottom: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+.comment-bubble {
+    padding: 12px 16px;
+    border-radius: 12px;
+    max-width: 85%;
+    font-size: 14px;
+    line-height: 1.8;
+    font-family: "Noto Serif SC", serif;
+    animation: memo-fade-in 0.5s ease;
+}
+.user-comment {
+    background-color: #1a1a1a;
+    align-self: flex-end; /* 你的评论靠右 */
+    border-bottom-right-radius: 2px;
+}
+.character-reply {
+    background-color: transparent;
+    border: 1px solid #333;
+    align-self: flex-start; /* 他的回复靠左 */
+    border-top-left-radius: 2px;
+}
+.reply-author {
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 4px;
+    font-style: italic;
+}
+.reply-loading {
+    color: #666;
+    font-style: italic;
+    font-size: 13px;
+    animation: pulse 1.5s infinite;
+}
+
+/* --- 评论输入表单 --- */
+#comment-form textarea {
+    width: 100%;
+    box-sizing: border-box;
+    background: #111;
+    border: 1px solid #333;
+    border-radius: 8px;
+    color: #eee;
+    padding: 12px;
+    font-size: 14px;
+    min-height: 70px;
+    resize: vertical;
+    font-family: "Noto Serif SC", serif;
+    transition: border-color 0.2s;
+}
+#comment-form textarea:focus {
+    outline: none;
+    border-color: #D4AF37;
+}
+.comment-submit-btn {
+    display: block;
+    width: 100%;
+    background: #D4AF37;
+    color: #000;
+    border: none;
+    border-radius: 4px;
+    padding: 10px;
+    margin-top: 12px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+.comment-submit-btn:hover {
+    opacity: 0.9;
+}
+.comment-submit-btn:disabled {
+    background: #555;
+    cursor: not-allowed;
+}
