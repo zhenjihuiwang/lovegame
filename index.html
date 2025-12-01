@@ -311,25 +311,37 @@
 
         <!-- 3. 右侧内容区 -->
         <div class="flex-1 flex flex-col bg-[#111] relative w-full">
-            
-            <!-- 头部导航 (新版) -->
-            <div class="h-20 border-b border-white/5 flex justify-between items-center pl-4 pr-6 md:px-8 bg-[#111] z-10">
-                <!-- 日期选择器按钮 -->
-                <button onclick="journalManager.showCalendar()" class="date-selector-btn">
-                    <i class="ph ph-calendar-blank text-xl text-gray-500"></i>
-                    <span id="journal-date-display" class="date-display-text">Select Date</span>
-                    <i class="ph ph-caret-down text-sm text-gray-600"></i>
+            <!-- 头部导航 -->
+            <div class="journal-header p-6 md:p-8 relative border-b border-white/10 bg-[#111] z-10">
+    
+                <!-- 关闭按钮 -->
+                <button onclick="journalManager.close()" class="absolute top-4 right-4 z-10 text-gray-500 hover:text-white bg-black/30 rounded-full p-2 transition">
+                    <i class="ph ph-x text-2xl"></i>
                 </button>
-                <!-- 视图切换 (记忆/日记) -->
-                <div class="view-switch-container">
-                    <button onclick="journalManager.switchView('memory')" id="btn-view-memory" class="view-switch-btn">
-                        <i class="ph ph-brain"></i>
-                    </button>
-                    <button onclick="journalManager.switchView('diary')" id="btn-view-diary" class="view-switch-btn active-switch">
-                        <i class="ph ph-book-open"></i>
-                    </button>
-                </div>
+    
+    <!-- 主体内容 -->
+    <div class="flex items-start justify-between">
+        <!-- 左侧：日期 (点击可打开日历) -->
+        <div onclick="journalManager.showCalendar()" class="cursor-pointer group">
+            <div class="flex items-baseline gap-3">
+                <span id="journal-header-day" class="text-5xl md:text-6xl text-[#D4AF37] font-serif font-medium transition-colors group-hover:text-white">--</span>
+                <span id="journal-header-month" class="text-xl md:text-2xl text-gray-500 font-serif uppercase tracking-widest">---</span>
             </div>
+            <!-- 确保这个 div 存在且 ID 正确 -->
+            <div id="journal-year-display" class="text-sm text-gray-600 tracking-widest mt-1">----</div>
+        </div>
+
+        <!-- 右侧：视图切换 -->
+        <div class="journal-header-switcher flex flex-col items-end gap-3 text-sm text-gray-500 mt-2">
+             <button onclick="journalManager.switchView('diary')" id="btn-view-diary" class="active">
+                阅览日记
+            </button>
+            <button onclick="journalManager.switchView('memory')" id="btn-view-memory">
+                检索记忆
+            </button>
+        </div>
+    </div>
+</div>
 
             <!-- 内容滚动区 -->
             <div class="flex-1 relative overflow-hidden bg-[#0a0a0a]">
@@ -352,15 +364,6 @@
 
     <!-- 3. 主要内容区 -->
     <div class="relative z-10 min-h-full p-6 md:p-12 pl-12 md:pl-20 pb-24 max-w-4xl mx-auto">
-        
-        <!-- 日期头 -->
-        <div class="flex items-baseline gap-3 mb-4">
-            <span id="noir-day" class="text-5xl md:text-6xl text-[#D4AF37] font-serif font-medium">--</span>
-            <span id="noir-month" class="text-xl md:text-2xl text-gray-500 font-serif uppercase tracking-widest">---</span>
-        </div>
-        
-        <!-- 金色分割线 -->
-        <div class="h-0.5 w-12 bg-[#D4AF37] mb-8 md:mb-12"></div>
 
         <!-- 标题 -->
         <h1 id="noir-title" class="text-2xl md:text-3xl text-gray-200 font-serif leading-relaxed mb-8 italic">

@@ -883,8 +883,9 @@ const director = {
     }
 };
 
+
 // ==========================================
-// 15. 日记与结算系统 (V3: 带刷新与评论)
+// 15. 日记与结算系统 
 // ==========================================
 const journalManager = {
     calendarDate: new Date(), 
@@ -920,13 +921,12 @@ const journalManager = {
         }
     },
 
-    // [核心更新] 加载条目时，同时渲染操作区和评论区
+    // [FINAL CORRECTED VERSION] - 这是本次修复的核心
     loadEntry: function(dateStr) {
         if (!dateStr) return;
         this.selectedDate = dateStr;
         this.renderTimeline(); // 重新渲染时间轴以高亮当前选项
-        document.getElementById('journal-date-display').innerText = dateStr;
-        
+
         const char = characterManager.getCurrent();
         const entry = char.journal ? char.journal[dateStr] : null;
 
@@ -936,16 +936,24 @@ const journalManager = {
             const monthName = d.toLocaleString('en-US', { month: 'short' }).toUpperCase();
             const day = d.getDate();
 
+            // 更新【新头部】的日期元素
+            document.getElementById('journal-header-day').innerText = day;
+            document.getElementById('journal-header-month').innerText = monthName;
+            document.getElementById('journal-year-display').innerText = year;
+
+            // 更新【日记正文区】的元素
             document.getElementById('noir-bg-year').innerText = `'${year.slice(2)}`;
-            document.getElementById('noir-day').innerText = day;
-            document.getElementById('noir-month').innerText = monthName;
             document.getElementById('noir-title').innerText = `"${entry.title}"`;
             
             const paragraphs = entry.diary.split('\n').filter(p => p.trim() !== "");
             document.getElementById('noir-body').innerHTML = paragraphs.map(p => `<p>${p}</p>`).join('');
         } else {
-            document.getElementById('noir-day').innerText = '--';
-            document.getElementById('noir-month').innerText = '---';
+            // 如果没有日记，则【清空】所有相关显示
+            document.getElementById('journal-header-day').innerText = '--';
+            document.getElementById('journal-header-month').innerText = '---';
+            document.getElementById('journal-year-display').innerText = '----';
+
+            document.getElementById('noir-bg-year').innerText = ''; // 背景年份也清空
             document.getElementById('noir-title').innerText = '当天没有日记...';
             document.getElementById('noir-body').innerHTML = '';
         }
@@ -954,7 +962,7 @@ const journalManager = {
         this.renderComments(entry ? entry.comments : null);
     },
     
-    // [新增] 渲染日记末尾的操作区
+    // [后面的代码保持不变，确保功能完整]
     renderDiaryActions: function(hasDiary) {
         const footer = document.getElementById('diary-actions-footer');
         const btnText = document.getElementById('refresh-diary-text');
@@ -970,7 +978,6 @@ const journalManager = {
         footer.classList.remove('hidden');
     },
     
-    // [新增] 渲染评论线程
     renderComments: function(comments) {
         const thread = document.getElementById('comment-thread');
         thread.innerHTML = '';
@@ -992,7 +999,6 @@ const journalManager = {
         thread.scrollTop = thread.scrollHeight;
     },
 
-    // [新增] 处理刷新/生成日记的按钮点击
     handleDiaryRefresh: async function() {
         const btn = document.getElementById('refresh-diary-btn');
         btn.disabled = true;
@@ -1040,7 +1046,6 @@ const journalManager = {
         }
     },
     
-    // [新增] 提交评论
     submitComment: async function() {
         const textarea = document.getElementById('comment-textarea');
         const btn = document.getElementById('comment-submit-btn');
@@ -1091,7 +1096,6 @@ const journalManager = {
         }
     },
 
-    // ======== 【已修复】现有功能 ========
     showCalendar: function() {
         const modal = document.getElementById('calendar-modal');
         modal.classList.remove('invisible', 'opacity-0', 'pointer-events-none');
@@ -1117,7 +1121,6 @@ const journalManager = {
         const grid = document.querySelector('.calendar-grid');
         const monthDisplay = document.getElementById('calendar-month-display');
         
-        // 清空除了星期标题以外的所有内容
         while(grid.children.length > 7) {
             grid.removeChild(grid.lastChild);
         }
@@ -1176,14 +1179,15 @@ const journalManager = {
         const memBtn = document.getElementById('btn-view-memory');
         const diaryBtn = document.getElementById('btn-view-diary');
 
+        // 注意：新版切换按钮没有 .active-switch 类，只有 .active
         if (type === 'memory') {
             memView.classList.remove('view-hidden');
             memView.classList.add('view-active');
             diaryView.classList.remove('view-active');
             diaryView.classList.add('view-hidden');
             
-            memBtn.classList.add('active-switch');
-            diaryBtn.classList.remove('active-switch');
+            memBtn.classList.add('active');
+            diaryBtn.classList.remove('active');
             
             this.renderMemoryCore();
         } else {
@@ -1192,8 +1196,8 @@ const journalManager = {
             memView.classList.remove('view-active');
             memView.classList.add('view-hidden');
             
-            diaryBtn.classList.add('active-switch');
-            memBtn.classList.remove('active-switch');
+            diaryBtn.classList.add('active');
+            memBtn.classList.remove('active');
         }
     },
     
@@ -1287,6 +1291,7 @@ const journalManager = {
         // ... (此函数保持不变)
     }
 };
+
 
 // ==========================================
 // 12. App 启动
