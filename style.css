@@ -1360,3 +1360,34 @@ form { padding: 24px; }
     width: 100%;
     height: 100%;
 }
+
+/* style.css */
+
+/* 视觉配置锚点标记 */
+.rig-anchor-marker {
+    position: absolute;
+    width: 10px; height: 10px;
+    transform: translate(-50%, -50%); /* 居中定位 */
+    pointer-events: none;
+    display: flex; align-items: center; justify-content: center;
+}
+
+/* 脸部锚点 (星星) */
+.rig-anchor-marker.face { color: #D4AF37; font-size: 14px; text-shadow: 0 0 5px rgba(0,0,0,0.8); }
+.rig-anchor-marker.face::after { content: '★'; }
+
+/* 普通锚点 (圆点) */
+.rig-anchor-marker.point { }
+.rig-anchor-marker.point::after { 
+    content: ''; width: 6px; height: 6px; 
+    background: rgba(255, 255, 255, 0.8); 
+    border: 1px solid #000; border-radius: 50%; 
+}
+
+/* 锚点名称标签 */
+.rig-anchor-label {
+    position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,0.7); color: #fff;
+    font-size: 8px; padding: 1px 4px; border-radius: 2px;
+    white-space: nowrap; pointer-events: none;
+}

@@ -354,6 +354,78 @@
                 <span>角色设定</span>
                 <button onclick="characterManager.deleteCurrent()" class="text-[9px] text-red-800 hover:text-red-500">删除角色</button>
             </div>
+
+<!-- ==== 视觉配置 (Visual Rigging) ==== -->
+<div class="border border-white/10 bg-white/5 p-4 rounded-lg mb-6">
+    <div class="flex justify-between items-center mb-4 cursor-pointer" onclick="document.getElementById('visual-rig-content').classList.toggle('hidden')">
+        <label class="text-[#D4AF37] text-xs font-bold tracking-widest uppercase"><i class="ph-fill ph-crosshair"></i> 视觉配置 (Visual Rig)</label>
+        <i class="ph ph-caret-down text-gray-500"></i>
+    </div>
+    
+    <div id="visual-rig-content" class="hidden space-y-4">
+        
+        <!-- 1. 实时预览窗口 -->
+        <div class="relative w-full aspect-[3/4] bg-[#0a0a0a] border border-white/10 overflow-hidden group select-none" id="rig-preview-container">
+            <!-- 网格背景 -->
+            <div class="absolute inset-0 opacity-20 pointer-events-none" style="background-image: radial-gradient(#333 1px, transparent 1px); background-size: 20px 20px;"></div>
+            
+            <!-- 立绘预览 (可交互) -->
+            <div id="rig-char-wrapper" class="w-full h-full transition-transform duration-200 origin-center pointer-events-none">
+                <img id="rig-char-img" src="" class="w-full h-full object-cover">
+            </div>
+
+            <!-- 点击层 (用于捕捉坐标) -->
+            <div class="absolute inset-0 cursor-crosshair z-10" onclick="visualRigManager.handlePreviewClick(event)"></div>
+
+            <!-- 锚点标记容器 -->
+            <div id="rig-anchors-layer" class="absolute inset-0 pointer-events-none z-20">
+                <!-- JS 会在这里生成星星和圆点 -->
+            </div>
+            
+            <div class="absolute bottom-2 right-2 text-[8px] text-gray-500 bg-black/50 px-2 rounded">点击画面设置锚点</div>
+        </div>
+        <div class="flex justify-between items-center text-[9px] text-gray-500 px-1 mt-1">
+             <span id="rig-sprite-name">预览: (无)</span>
+             <button onclick="visualRigManager.cyclePreviewSprite(1)" class="hover:text-white transition">切换预览图 &gt;</button>
+        </div>
+        <!-- 2. 基础骨架滑块 -->
+        <div class="space-y-3 border-t border-white/5 pt-3">
+            <div class="text-[9px] text-gray-400 uppercase tracking-wider">Base Rig (默认姿态)</div>
+            
+            <div class="flex items-center gap-2">
+                <span class="text-[9px] w-8 text-right">缩放</span>
+                <input type="range" id="rig-scale" min="0.5" max="2.0" step="0.05" class="flex-1 accent-[#D4AF37] h-1 bg-gray-700 rounded-lg appearance-none" oninput="visualRigManager.updatePreview()">
+                <span id="rig-scale-val" class="text-[9px] w-8 font-mono">1.0</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-[9px] w-8 text-right">X轴</span>
+                <input type="range" id="rig-x" min="-50" max="50" step="1" class="flex-1 accent-[#D4AF37] h-1 bg-gray-700 rounded-lg appearance-none" oninput="visualRigManager.updatePreview()">
+                <span id="rig-x-val" class="text-[9px] w-8 font-mono">0</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-[9px] w-8 text-right">Y轴</span>
+                <input type="range" id="rig-y" min="-50" max="50" step="1" class="flex-1 accent-[#D4AF37] h-1 bg-gray-700 rounded-lg appearance-none" oninput="visualRigManager.updatePreview()">
+                <span id="rig-y-val" class="text-[9px] w-8 font-mono">0</span>
+            </div>
+            <button onclick="visualRigManager.resetBase()" class="text-[9px] text-red-800 hover:text-red-500 w-full text-right underline">重置骨架</button>
+        </div>
+
+        <!-- 3. 锚点管理 -->
+        <div class="space-y-2 border-t border-white/5 pt-3">
+            <div class="flex justify-between items-center">
+                <div class="text-[9px] text-gray-400 uppercase tracking-wider">Focus Anchors (特写点)</div>
+                <button onclick="visualRigManager.setMode('add')" id="btn-add-anchor" class="text-[9px] bg-[#D4AF37]/10 text-[#D4AF37] border border-[#D4AF37]/30 px-2 py-0.5 rounded hover:bg-[#D4AF37] hover:text-black transition">+ 添加</button>
+            </div>
+            
+            <div id="rig-anchor-list" class="space-y-1 max-h-32 overflow-y-auto scrollbar-hide">
+                <!-- JS 生成列表 -->
+            </div>
+            <div id="rig-status-msg" class="text-[9px] text-[#D4AF37] text-center italic h-4"></div>
+        </div>
+        
+        <button onclick="visualRigManager.save()" class="gold-btn w-full py-2 mt-2">保存视觉配置</button>
+    </div>
+</div>
             <div class="input-group">
                 <label>角色姓名</label>
                 <input type="text" id="persona-name" class="mono-input" autocomplete="off">
@@ -448,7 +520,7 @@
         </div>
     </div>
 
-<!-- ==== 日记系统全屏弹窗 (新版) ==== -->
+<!-- ==== 日记系统全屏弹窗  ==== -->
 <div id="journal-modal" class="fixed inset-0 z-[80] bg-black/90 backdrop-blur-md flex items-center justify-center transition-opacity duration-300 opacity-0 pointer-events-none invisible">
     
     <!-- 窗口容器 -->

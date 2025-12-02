@@ -1247,28 +1247,71 @@ const director = {
         if (this.cursor >= this.queue.length - 1) indicator.style.opacity = "0.3"; else indicator.style.opacity = "1";
 
         document.getElementById('dialogue-text').innerText = step.text;
+        
+        // 模式切换
         if (step.type === 'narration') { box.classList.add('narration-mode'); } 
         else { box.classList.remove('narration-mode'); nameEl.innerText = step.name ? step.name : aiEngine.getConfig().charName; }
 
-        if (step.visual) {
-            const wrapper = document.getElementById('char-wrapper');
+        // === 视觉处理 (Visual) ===
+        if (step.visual || true) { // 即使没有 visual 指令，也要执行以恢复默认状态
+            const wrapper = document.getElementById('char-wrapper'); // 注意：只控制内层缩放
             const charImg = document.getElementById('char-img');
             const bgImg = document.getElementById('bg-img');
             const cache = assetManager.cache;
-            wrapper.style.transform = `scale(${step.visual.zoom || 1})`;
-            wrapper.style.transformOrigin = step.visual.focus || "50% 25%";
-            bgImg.style.filter = step.visual.filter || "none";
-            if (step.visual.weather) {
-                weatherManager.set(step.visual.weather);
+            const char = characterManager.getCurrent();
+            
+            // 1. 获取基础骨架 (默认值)
+            const rig = char.visual || { scale: 1.0, x: 0, y: 0, anchors: { 'face': {x: 50, y: 25} } };
+            
+            // 2. 解析 AI 指令
+            const visual = step.visual || {};
+            
+            // 3. 计算 Transform 属性
+            let targetScale = rig.scale; // 默认为骨架大小
+            let originX = 50; // 默认为中心
+            let originY = 25; // 默认为通常的脸部高度
+            let translateX = rig.x;
+            let translateY = rig.y;
+
+            if (visual.zoom) {
+                // 如果有 zoom 指令，覆盖默认 scale
+                // AI 的 zoom 是基于默认的倍数，比如 zoom: 1.5 是默认大小的 1.5 倍
+                targetScale = rig.scale * parseFloat(visual.zoom);
+                
+                // 确定聚焦锚点
+                // 如果指定了 focus (如 "hand"), 去 anchors 找
+                // 如果没指定，默认用 'face'
+                const focusTarget = visual.focus || 'face';
+                const anchor = rig.anchors[focusTarget] || rig.anchors['face'];
+                
+                if (anchor) {
+                    originX = anchor.x;
+                    originY = anchor.y;
+                }
             }
-            if(step.visual.sprite && cache.char[step.visual.sprite]) { charImg.src = cache.char[step.visual.sprite]; charImg.classList.remove('hidden'); }
-            if(step.visual.bg && cache.bg[step.visual.bg]) {
-                const newBgUrl = cache.bg[step.visual.bg];
+
+            // 4. 应用样式
+            // 使用 transform-origin 来实现“对准某处放大”
+            wrapper.style.transformOrigin = `${originX}% ${originY}%`;
+            wrapper.style.transform = `translate(${translateX}%, ${translateY}%) scale(${targetScale})`;
+
+            // 5. 其他视觉元素 (背景、立绘更换、滤镜)
+            if (visual.filter) bgImg.style.filter = visual.filter;
+            else bgImg.style.filter = "none";
+            
+            if (visual.weather) weatherManager.set(visual.weather);
+
+            if(visual.sprite && cache.char[visual.sprite]) { 
+                charImg.src = cache.char[visual.sprite]; charImg.classList.remove('hidden'); 
+            }
+            if(visual.bg && cache.bg[visual.bg]) {
+                const newBgUrl = cache.bg[visual.bg];
                 if(!bgImg.src.endsWith(newBgUrl)) {
                     bgImg.style.opacity = 0; setTimeout(() => { bgImg.src = newBgUrl; bgImg.style.opacity = 1; document.getElementById('bg-placeholder').classList.add('hidden'); }, 300);
                 } else { bgImg.style.opacity = 1; document.getElementById('bg-placeholder').classList.add('hidden'); }
             }
         }
+        
         if (step.audio) {
             if (step.audio.bgm !== undefined) audioManager.playBgm(step.audio.bgm);
             if (step.audio.sfx !== undefined) audioManager.updateSfx(step.audio.sfx);
@@ -1863,6 +1906,182 @@ const app = {
 }
 };
 
+// ==========================================
+// 17. 视觉配置管理器 (Visual Rigging) - 完整代码
+// ==========================================
+const visualRigManager = {
+    data: { scale: 1.0, x: 0, y: 0, anchors: { 'face': {x: 50, y: 25} } },
+    mode: 'face', 
+    previewSpriteIndex: -1, // 使用索引来追踪预览图
+
+    init: function() {
+        const char = characterManager.getCurrent();
+        this.data = char.visual || { 
+            scale: 1.0, x: 0, y: 0, 
+            anchors: { 'face': {x: 50, y: 25} } 
+        };
+        
+        // 初始化时加载第一张预览图
+        this.previewSpriteIndex = -1; // 重置索引
+        this.cyclePreviewSprite(1); // 自动加载第一张
+        
+        this.syncUI();
+    },
+
+    // 切换预览图的函数
+    cyclePreviewSprite: function(direction) {
+        const assets = assetManager.cache.char;
+        const spriteKeys = Object.keys(assets);
+        const imgEl = document.getElementById('rig-char-img');
+        const nameEl = document.getElementById('rig-sprite-name');
+
+        if (spriteKeys.length === 0) {
+            imgEl.src = "";
+            nameEl.innerText = "预览: (无立绘)";
+            return;
+        }
+
+        this.previewSpriteIndex += direction;
+
+        // 循环逻辑
+        if (this.previewSpriteIndex >= spriteKeys.length) this.previewSpriteIndex = 0;
+        if (this.previewSpriteIndex < 0) this.previewSpriteIndex = spriteKeys.length - 1;
+
+        const currentKey = spriteKeys[this.previewSpriteIndex];
+        imgEl.src = assets[currentKey];
+        nameEl.innerText = `预览: ${currentKey}`;
+    },
+
+    syncUI: function() {
+        document.getElementById('rig-scale').value = this.data.scale;
+        document.getElementById('rig-scale-val').innerText = this.data.scale;
+        document.getElementById('rig-x').value = this.data.x;
+        document.getElementById('rig-x-val').innerText = this.data.x;
+        document.getElementById('rig-y').value = this.data.y;
+        document.getElementById('rig-y-val').innerText = this.data.y;
+        
+        this.updatePreview();
+        this.renderAnchors();
+        this.renderList();
+    },
+
+    updatePreview: function() {
+        this.data.scale = parseFloat(document.getElementById('rig-scale').value);
+        this.data.x = parseInt(document.getElementById('rig-x').value);
+        this.data.y = parseInt(document.getElementById('rig-y').value);
+
+        const wrapper = document.getElementById('rig-char-wrapper');
+        wrapper.style.transform = `translate(${this.data.x}%, ${this.data.y}%) scale(${this.data.scale})`;
+        
+        document.getElementById('rig-scale-val').innerText = this.data.scale;
+        document.getElementById('rig-x-val').innerText = this.data.x;
+        document.getElementById('rig-y-val').innerText = this.data.y;
+    },
+
+    handlePreviewClick: function(e) {
+        const rect = e.target.getBoundingClientRect();
+        const xPct = ((e.clientX - rect.left) / rect.width) * 100;
+        const yPct = ((e.clientY - rect.top) / rect.height) * 100;
+
+        if (this.mode === 'add') {
+            const name = prompt("给这个部位起个名字 (如: 手, 眼睛):");
+            if (name && name.trim()) {
+                this.data.anchors[name.trim()] = { x: xPct.toFixed(1), y: yPct.toFixed(1) };
+                this.setMode('face');
+                this.renderAnchors();
+                this.renderList();
+            } else {
+                 this.setMode('face'); // 取消添加
+            }
+        } else {
+            this.data.anchors['face'] = { x: xPct.toFixed(1), y: yPct.toFixed(1) };
+            this.showMsg("脸部锚点已更新");
+            this.renderAnchors();
+            this.renderList();
+        }
+    },
+
+    renderAnchors: function() {
+        const container = document.getElementById('rig-anchors-layer');
+        container.innerHTML = '';
+        if (!this.data.anchors) return;
+        
+        for (let [name, pos] of Object.entries(this.data.anchors)) {
+            const marker = document.createElement('div');
+            marker.className = `rig-anchor-marker ${name === 'face' ? 'face' : 'point'}`;
+            marker.style.left = `${pos.x}%`;
+            marker.style.top = `${pos.y}%`;
+            
+            if (name !== 'face') {
+                marker.innerHTML = `<span class="rig-anchor-label">${name}</span>`;
+            }
+            container.appendChild(marker);
+        }
+    },
+
+    renderList: function() {
+        const list = document.getElementById('rig-anchor-list');
+        list.innerHTML = '';
+        if (!this.data.anchors) return;
+        
+        for (let [name, pos] of Object.entries(this.data.anchors)) {
+            const row = document.createElement('div');
+            row.className = "flex justify-between items-center bg-black/30 px-2 py-1 rounded text-[9px] text-gray-400";
+            
+            let label = name === 'face' ? `⭐ 脸部 (默认)` : `⚫ ${name}`;
+            let delBtn = (name !== 'face') ? `<button onclick="visualRigManager.deleteAnchor('${name}')" class="text-red-500 hover:text-white ml-2"><i class="ph ph-trash"></i></button>` : '';
+
+            row.innerHTML = `
+                <span>${label}</span>
+                <div class="flex items-center">
+                    <span class="font-mono text-[8px] opacity-50 mr-2">[${parseInt(pos.x)},${parseInt(pos.y)}]</span>
+                    ${delBtn}
+                </div>
+            `;
+            list.appendChild(row);
+        }
+    },
+    
+    showMsg: function(text) {
+        const msgEl = document.getElementById('rig-status-msg');
+        msgEl.innerText = text;
+        setTimeout(() => msgEl.innerText = "", 2000);
+    },
+
+    setMode: function(m) {
+        this.mode = m;
+        const msgEl = document.getElementById('rig-status-msg');
+        const btn = document.getElementById('btn-add-anchor');
+        if (m === 'add') {
+            msgEl.innerText = "请在预览图上点击新锚点的位置...";
+            btn.classList.add('bg-[#D4AF37]', 'text-black');
+        } else {
+            msgEl.innerText = "";
+            btn.classList.remove('bg-[#D4AF37]', 'text-black');
+        }
+    },
+
+    deleteAnchor: function(name) {
+        if(confirm(`删除锚点 "${name}"?`)) {
+            delete this.data.anchors[name];
+            this.renderAnchors();
+            this.renderList();
+        }
+    },
+    
+    resetBase: function() {
+        this.data.scale = 1.0; this.data.x = 0; this.data.y = 0;
+        this.syncUI();
+    },
+
+    save: function() {
+        const char = characterManager.getCurrent();
+        char.visual = this.data;
+        characterManager.save();
+        this.showMsg("视觉配置已保存!");
+    }
+};
+
 const uiManager = {
     openSettings: () => document.getElementById('settings-modal').classList.add('modal-open'),
     closeSettings: () => document.getElementById('settings-modal').classList.remove('modal-open'),
@@ -1871,6 +2090,9 @@ const uiManager = {
         document.getElementById(`tab-${tabName}`).classList.remove('hidden');
         document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
         document.querySelector(`.tab-btn[data-tab="${tabName}"]`).classList.add('active');
+        if(tabName === 'persona') {
+            visualRigManager.init();
+        }
     }
 };
 
