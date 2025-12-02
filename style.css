@@ -1354,3 +1354,9 @@ form { padding: 24px; }
 }
 .v-dot.active { background: #D4AF37; box-shadow: 0 0 4px rgba(212, 175, 55, 0.5); }
 .v-dot.warning { background: #ef4444; box-shadow: 0 0 4px rgba(239, 68, 68, 0.5); }
+
+/* 新增的 3D 视差角色容器样式 */
+#parallax-char-container {
+    width: 100%;
+    height: 100%;
+}
