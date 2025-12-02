@@ -1327,7 +1327,8 @@ form { padding: 24px; }
     font-size: 10px; color: #aaa; margin-bottom: 4px;
     opacity: 0; animation: fade-slide-up 4s infinite;
     font-family: "Noto Serif SC", serif; font-style: italic;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    white-space: normal; 
+    line-height: 1.5;    
 }
 @keyframes fade-slide-up {
     0% { opacity: 0; transform: translateY(10px); }
