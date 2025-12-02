@@ -2197,6 +2197,260 @@ const uiManager = {
     }
 };
 
+// ==========================================
+// 19. 智能日程管理器 (Calendar Manager)
+// ==========================================
+const calendarManager = {
+    scheduleData: null,
+    currentDayIndex: 0,
+
+    // === 升级版：自动日期上下文判断函数 ===
+    getDateContext: function(dateObj) {
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        const weekday = dateObj.getDay(); // 0=Sunday, 6=Saturday
+        const dateKey = `${month}-${day}`;
+
+        // 1. 检查角色专属纪念日 (最高优先级)
+        if (typeof characterAnniversaries !== 'undefined' && characterAnniversaries[dateKey]) {
+            return `${characterAnniversaries[dateKey]} (特殊纪念日)`;
+        }
+
+        // 2. 检查公历节日
+        if (typeof holidaysCN !== 'undefined' && holidaysCN[dateKey]) {
+            return `${holidaysCN[dateKey]} (节日)`;
+        }
+
+        // 3. 检查周末
+        if (weekday === 0 || weekday === 6) {
+            return "周末";
+        }
+        
+        // 4. 默认为工作日
+        return "工作日";
+    },
+
+    // (后面的函数和之前一样，但为了确保完整性，我全部粘贴在这里)
+    open: function() {
+        if(typeof dockManager !== 'undefined') dockManager.close();
+        const modal = document.getElementById('calendar-window-modal');
+        modal.classList.remove('invisible', 'opacity-0', 'pointer-events-none');
+        modal.classList.add('modal-open');
+        modal.style.pointerEvents = 'auto';
+        const char = characterManager.getCurrent();
+        if (!char.schedule || char.schedule.length === 0) {
+            this.generateSchedule();
+        } else {
+            this.scheduleData = char.schedule;
+            this.renderHeader();
+            this.renderTimeline(0);
+        }
+    },
+
+    close: function() {
+        const modal = document.getElementById('calendar-window-modal');
+        modal.classList.remove('modal-open');
+        modal.classList.add('opacity-0');
+        modal.style.pointerEvents = 'none';
+        setTimeout(() => modal.classList.add('invisible'), 300);
+    },
+
+    // 调用 AI 生成 7 天日程 (最终修复版：增加数据清洗)
+    generateSchedule: async function(force = false) {
+        if (!force && this.scheduleData) return;
+
+        const icon = document.getElementById('cal-refresh-icon');
+        const timeline = document.getElementById('cal-timeline');
+        
+        if(icon) icon.classList.add('animate-spin');
+        if(timeline) timeline.innerHTML = `<div class="flex flex-col items-center justify-center h-full text-gray-500 gap-2"><i class="ph ph-spinner animate-spin text-2xl"></i><span class="text-xs">感知现实时间，规划行程...</span></div>`;
+
+        const char = characterManager.getCurrent();
+        const conf = aiEngine.getConfig();
+        const stats = char.stats || { affection: 0 };
+        const now = new Date();
+
+        let dateContextStr = "";
+        for(let i=0; i<7; i++) {
+            const d = new Date(now);
+            d.setDate(now.getDate() + i);
+            const dateStr = d.toISOString().split('T')[0];
+            const context = this.getDateContext(d);
+            dateContextStr += `- ${dateStr}: ${context}\n`;
+        }
+
+        const prompt = `
+        你现在是【${char.name}】。请为自己规划未来 7 天的日程。
+
+        【A. 你的核心人设】: ${char.prompt}
+        【B. 与玩家的关系】: 你们是 ${char.relation}，好感度 ${stats.affection}%
+        【C. 日期特殊性 (重点依据)】:\n${dateContextStr}
+
+        【规划逻辑】
+        1. 你的日程必须严格符合你的职业和当天的类型（工作日/周末/节日）。
+        2. 好感度高时，你应该在周末或节假日主动安排与玩家的约会（"type": "DATE"）。
+        3. 在特殊节日，你应该安排符合节日氛围的活动。
+        4. 普通个人事务或工作使用 "type": "FLEXIBLE" 或 "LOCKED"。
+
+        【数据格式要求 - 必须严格遵守】
+        - 返回一个纯 JSON 数组，这个数组必须包含 7 个对象，每个对象代表一天。
+        - 每个“天”对象必须包含 "date", "weekday", 和 "events" 三个键。
+        - "events" 键的值必须是一个事件对象的数组，即使当天没有活动，也要返回一个空数组 []。
+        - 每个“事件”对象必须包含 "start", "end", "activity", "desc", "type" 五个键。
+        - 日期必须从 ${now.toISOString().split('T')[0]} 开始，连续7天。
+
+        【JSON 结构示例】
+        [
+          {
+            "date": "${now.toISOString().split('T')[0]}",
+            "weekday": "三",
+            "events": [
+              {
+                "start": "09:00",
+                "end": "12:00",
+                "activity": "处理工作邮件",
+                "desc": "回复堆积的客户请求。",
+                "type": "LOCKED"
+              },
+              {
+                "start": "19:00",
+                "end": "21:00",
+                "activity": "和玩家视频通话",
+                "desc": "分享今天发生的趣事。",
+                "type": "DATE"
+              }
+            ]
+          },
+          {
+            "date": "${new Date(now.setDate(now.getDate() + 1)).toISOString().split('T')[0]}",
+            "weekday": "四",
+            "events": []
+          }
+        ]
+        `;
+        try {
+            const res = await fetch(aiEngine.fixUrl(conf.url, "/chat/completions"), {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${conf.key}` },
+                body: JSON.stringify({
+                    model: conf.model,
+                    messages: [
+                        { role: "system", content: "你是一个日程生成API。只输出标准JSON数组。" },
+                        { role: "user", content: prompt }
+                    ],
+                    temperature: 0.8
+                })
+            });
+            const data = await res.json();
+            
+            let rawContent = data.choices[0].message.content;
+            const firstBracket = rawContent.indexOf('[');
+            const lastBracket = rawContent.lastIndexOf(']');
+            if (firstBracket !== -1 && lastBracket !== -1) {
+                rawContent = rawContent.substring(firstBracket, lastBracket + 1);
+            }
+            const schedule = JSON.parse(rawContent);
+
+            // === 新增：数据验证与清洗 ===
+            // 循环遍历 AI 返回的每一天
+            if (Array.isArray(schedule)) {
+                schedule.forEach(day => {
+                    // 确保 events 是一个数组
+                    if (day && Array.isArray(day.events)) {
+                        // 过滤掉所有不合格的 event 对象
+                        // 只保留那些同时拥有 "start" 和 "end" 属性的事件
+                        day.events = day.events.filter(event => event && event.start && event.end);
+                    }
+                });
+            }
+            // === 清洗结束 ===
+
+            this.scheduleData = schedule;
+            char.schedule = schedule;
+            characterManager.save();
+
+            this.renderHeader();
+            this.renderTimeline(0);
+
+        } catch (e) {
+            console.error(e);
+            if(timeline) timeline.innerHTML = `<div class="flex flex-col items-center justify-center h-full text-red-500 gap-2"><i class="ph ph-warning text-2xl"></i><span class="text-xs">生成失败，请重试</span></div>`;
+        } finally {
+            if(icon) icon.classList.remove('animate-spin');
+        }
+    },
+
+    renderHeader: function() {
+        const headerRow = document.getElementById('cal-week-row');
+        const monthTitle = document.getElementById('cal-current-month');
+        if (!this.scheduleData || this.scheduleData.length === 0) return;
+        const firstDate = new Date(this.scheduleData[0].date);
+        monthTitle.innerText = firstDate.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+        headerRow.innerHTML = '';
+        this.scheduleData.forEach((day, index) => {
+            const dateObj = new Date(day.date);
+            const dayNum = dateObj.getDate();
+            const capsule = document.createElement('div');
+            capsule.className = `cal-day-capsule ${index === this.currentDayIndex ? 'active' : ''}`;
+            capsule.onclick = () => { this.currentDayIndex = index; this.renderHeader(); this.renderTimeline(index); };
+            capsule.innerHTML = `<span class="cal-day-name">${day.weekday}</span><span class="cal-day-num">${dayNum}</span>`;
+            headerRow.appendChild(capsule);
+        });
+    },
+
+    renderTimeline: function(dayIndex) {
+        const container = document.getElementById('cal-timeline');
+        if(!container) return; container.innerHTML = '';
+        container.style.opacity = '0'; container.style.transform = 'translateY(10px)';
+        setTimeout(() => { container.style.transition = 'all 0.4s ease'; container.style.opacity = '1'; container.style.transform = 'translateY(0)'; }, 50);
+        if(!this.scheduleData || !this.scheduleData[dayIndex] || !this.scheduleData[dayIndex].events) return;
+        const dayData = this.scheduleData[dayIndex];
+        dayData.events.sort((a, b) => a.start.localeCompare(b.start));
+        dayData.events.forEach(ev => {
+            const durationMins = this.calcMinutesDiff(ev.start, ev.end);
+            let stateClass = "state-flexible";
+            if (ev.type === "LOCKED") stateClass = "state-locked";
+            if (ev.type === "DATE") stateClass = "state-date";
+            let hintText = "这也许是一个发起邀约的好时机？";
+            if (ev.type === "LOCKED") hintText = "这是重要事务，但他也许愿意为了你...？";
+            if (ev.type === "DATE") hintText = "这是你们的约定，快去对话吧！";
+            const div = document.createElement('div');
+            div.className = `event-block ${stateClass}`;
+            div.innerHTML = `
+                <div class="time-col"><span class="t-start">${ev.start}</span><span class="t-end">${ev.end}</span></div>
+                <div class="track-col"><div class="track-dot"></div><div class="track-line"></div></div>
+                <div class="event-card" onclick="calendarManager.showHint('${hintText}')">
+                    <div class="dur-pill">${this.formatDuration(durationMins)}</div>
+                    <div class="evt-type-tag">${ev.type === 'LOCKED' ? '<i class="ph-fill ph-lock-key"></i>' : ''} ${ev.type}</div>
+                    <span class="evt-activity">${ev.activity}</span><span class="evt-desc">${ev.desc || ''}</span>
+                </div>`;
+            container.appendChild(div);
+        });
+        const spacer = document.createElement('div'); spacer.style.height = "40px"; container.appendChild(spacer);
+    },
+
+    showHint: function(text) {
+        const box = document.getElementById('cal-hint-box');
+        const txt = document.getElementById('cal-hint-text');
+        if(!box || !txt) return;
+        txt.innerText = text; box.classList.add('show');
+        setTimeout(() => box.classList.remove('show'), 4000);
+    },
+
+    calcMinutesDiff: function(start, end) {
+        const [h1, m1] = start.split(':').map(Number);
+        const [h2, m2] = end.split(':').map(Number);
+        return (h2 * 60 + m2) - (h1 * 60 + m1);
+    },
+
+    formatDuration: function(mins) {
+        if (mins < 60) return `${mins}m`;
+        const h = Math.floor(mins / 60);
+        const m = mins % 60;
+        return m > 0 ? `${h}h ${m}m` : `${h}h`;
+    }
+};
+
 window.onload = function() {
     if (typeof director === 'undefined') alert("JS加载失败");
 };

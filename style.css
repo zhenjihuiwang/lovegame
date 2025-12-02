@@ -1542,3 +1542,104 @@ form { padding: 24px; }
     transition: all 0.2s;
 }
 .batch-exit-btn:hover { background: #000; color: #D4AF37; }
+
+/* =========================================
+   18. 智能日程表样式 (Precision Schedule)
+   ========================================= */
+#calendar-window-modal { z-index: 90; }
+
+/* 顶部日期栏 */
+.cal-header-bg {
+    background: linear-gradient(to bottom, rgba(5,5,5,0.98), rgba(5,5,5,0.8));
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    padding: 20px 24px 10px;
+}
+.cal-day-capsule {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    width: 44px; height: 56px; border-radius: 12px;
+    background: rgba(255,255,255,0.03); border: 1px solid transparent;
+    transition: all 0.3s; cursor: pointer; flex-shrink: 0;
+}
+.cal-day-capsule.active {
+    background: #D4AF37; color: #000; box-shadow: 0 0 15px rgba(212, 175, 55, 0.3); transform: scale(1.05);
+}
+.cal-day-capsule:hover:not(.active) { background: rgba(255,255,255,0.1); }
+.cal-day-name { font-size: 9px; text-transform: uppercase; }
+.cal-day-num { font-size: 16px; font-weight: bold; font-family: sans-serif; }
+
+/* 垂直时间轴容器 */
+.cal-timeline { flex: 1; overflow-y: auto; padding: 20px 20px 80px; position: relative; }
+
+/* 时间块组件 */
+.event-block { display: flex; gap: 14px; margin-bottom: 0; position: relative; min-height: 70px; }
+
+/* 左侧时间列 */
+.time-col {
+    display: flex; flex-direction: column; justify-content: space-between;
+    width: 42px; flex-shrink: 0; padding: 4px 0;
+}
+.t-start { color: #fff; font-weight: 700; font-family: monospace; font-size: 11px; text-align: right; }
+.t-end { color: #555; font-size: 10px; font-family: monospace; text-align: right; }
+
+/* 中间轴线 */
+.track-col { width: 10px; display: flex; flex-direction: column; align-items: center; position: relative; }
+.track-dot { width: 8px; height: 8px; border-radius: 50%; background: #000; border: 1px solid #444; z-index: 2; margin-top: 5px; }
+.track-line { flex: 1; width: 2px; background: #333; margin: -2px 0; z-index: 1; }
+
+/* 右侧卡片 */
+.event-card {
+    flex: 1; 
+    background: rgba(30, 30, 30, 0.9); /* 背景调亮，不透明度增加 */
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 10px; 
+    padding: 12px 14px; 
+    margin-bottom: 16px; 
+    position: relative;
+    transition: all 0.2s; 
+    cursor: pointer;
+    color: #ffffff; /* 【关键】强制文字白色 */
+}
+.event-card:hover { border-color: #888; background: rgba(255,255,255,0.15); }
+
+/* 卡片内部新层级 */
+.evt-activity { font-size: 13px; font-weight: bold; color: #fff; margin-bottom: 4px; display: block; }
+.evt-desc { font-size: 10px; color: #ccc; display: block; line-height: 1.4; }
+.evt-type-tag { font-size: 9px; font-family: monospace; color: #888; margin-bottom: 4px; display: flex; align-items: center; gap: 4px; text-transform: uppercase;}
+
+/* 时长胶囊 */
+.dur-pill {
+    position: absolute; top: 10px; right: 10px;
+    font-size: 9px; font-family: monospace; color: #aaa;
+    background: rgba(0,0,0,0.5); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1);
+}
+
+/* 状态变体 - Locked */
+.state-locked .track-dot { background: #222; border-color: #666; }
+.state-locked .track-line { background: #333; }
+.state-locked .event-card { border-left: 2px solid #555; }
+
+/* 状态变体 - Date (约会) */
+.state-date .track-dot { background: #D4AF37; border-color: #D4AF37; box-shadow: 0 0 8px #D4AF37; }
+.state-date .track-line { background: linear-gradient(to bottom, #D4AF37, rgba(212,175,55,0.1)); }
+.state-date .event-card { 
+    background: linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(0,0,0,0.9)); /* 金色背景加强 */
+    border-color: rgba(212, 175, 55, 0.6);
+}
+.state-date .evt-activity { color: #D4AF37; text-shadow: 0 0 10px rgba(212,175,55,0.3); }
+.state-date .evt-desc { color: #e0c070; }
+.state-date .evt-type-tag { color: #D4AF37; }
+.state-date .t-start { color: #D4AF37; }
+.state-date .dur-pill { color: #D4AF37; border-color: rgba(212,175,55,0.5); background: rgba(212,175,55,0.15); }
+/* 空闲间隙 */
+.gap-block { display: flex; gap: 14px; margin-bottom: 10px; height: 30px; align-items: center; opacity: 0.5; }
+.gap-visual { width: 1px; height: 100%; border-left: 1px dashed #333; margin-left: 60px; }
+.gap-text { font-size: 9px; color: #444; font-style: italic; margin-left: 12px; }
+
+/* 底部交互提示条 */
+.cal-hint-box {
+    position: absolute; bottom: 30px; left: 20px; right: 20px;
+    background: rgba(10,10,10,0.95); border: 1px solid #333; border-radius: 12px;
+    padding: 12px; display: flex; align-items: center; gap: 12px;
+    transform: translateY(100px); opacity: 0; transition: all 0.4s; z-index: 100;
+}
+.cal-hint-box.show { transform: translateY(0); opacity: 1; }
