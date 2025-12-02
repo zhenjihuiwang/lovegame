@@ -611,21 +611,36 @@
 </div>
 
             <!-- 视图 B: 记忆核心 -->
-            <div id="view-memory" class="view-section hidden-section">
-                <div class="flex items-center justify-between mb-6">
-                    <div class="text-[10px] tracking-[0.2em] text-[#D4AF37] font-bold">LONG-TERM CORE</div>
-                    <div class="flex gap-2">
-                         <button onclick="journalManager.toggleMemoryEdit()" class="text-xs text-gray-500 hover:text-white"><i class="ph ph-pencil-simple"></i> EDIT</button>
-                         <button onclick="aiEngine.forceSummarize()" class="text-xs text-[#D4AF37] border border-[#D4AF37]/30 px-2 py-1">COMPRESS</button>
-                    </div>
-                </div>
-                <div id="memory-timeline-view" class="space-y-6 pb-12"></div>
-                <textarea id="char-memory" class="w-full h-[60vh] bg-[#080808] text-gray-400 font-mono text-xs p-4 border-none outline-none resize-none hidden"></textarea>
-                <div class="mt-4 flex justify-between text-[9px] text-gray-600 border-t border-white/5 pt-2">
-                    <span>THRESHOLD: <input type="number" id="memory-threshold" value="20" class="bg-transparent text-center w-8 text-white"></span>
-                    <span id="mem-usage-display">0 chars</span>
-                </div>
-            </div>
+<div id="view-memory" class="view-section hidden-section relative"> 
+    
+    <!-- === 新增：批量操作顶部栏 (默认隐藏) === -->
+    <div id="mem-batch-bar">
+        <span id="mem-batch-count">SELECTED: 0</span>
+        <div class="batch-actions">
+            <button class="batch-btn" onclick="journalManager.batchCopy()" title="复制"><i class="ph ph-copy"></i></button>
+            <button class="batch-btn danger" onclick="journalManager.batchDelete()" title="删除"><i class="ph ph-trash"></i></button>
+            <div class="w-[1px] h-6 bg-black/10 self-center mx-2"></div>
+            <button class="batch-exit-btn" onclick="journalManager.exitBatchMode()">DONE</button>
+        </div>
+    </div>
+
+    <div class="flex items-center justify-between mb-6">
+        <div class="text-[10px] tracking-[0.2em] text-[#D4AF37] font-bold">LONG-TERM CORE</div>
+        <div class="flex gap-2">
+             <button onclick="aiEngine.forceSummarize()" class="text-xs text-[#D4AF37] border border-[#D4AF37]/30 px-2 py-1">COMPRESS</button>
+        </div>
+    </div>
+    
+    <!-- 记忆列表容器 -->
+    <div id="memory-timeline-view" class="space-y-6 pb-12"></div>
+    
+    <!-- 隐藏的统计和输入框保持不变 -->
+    <textarea id="char-memory" class="w-full h-[60vh] bg-[#080808] text-gray-400 font-mono text-xs p-4 border-none outline-none resize-none hidden"></textarea>
+    <div class="mt-4 flex justify-between text-[9px] text-gray-600 border-t border-white/5 pt-2">
+        <span>THRESHOLD: <input type="number" id="memory-threshold" value="20" class="bg-transparent text-center w-8 text-white"></span>
+        <span id="mem-usage-display">0 chars</span>
+    </div>
+</div>
 
         </div>
     </div>
