@@ -643,6 +643,12 @@ const historyManager = {
         
         document.getElementById('history-modal').classList.remove('opacity-0', 'pointer-events-none');
         document.getElementById('history-modal').classList.add('modal-open');
+        setTimeout(() => {
+            const container = document.getElementById('history-list');
+            if (container) {
+                container.scrollTop = container.scrollHeight;
+            }
+        }, 10);
     },
 
     hide: function() { 
@@ -994,18 +1000,54 @@ const aiEngine = {
         this.request();
     },
 
-    // 构建 System Prompt (修复版：加回素材列表)
+    // 构建 System Prompt (加强版：智能全量读取备忘录)
     buildSystemPrompt: function() {
         const conf = this.getConfig();
         const assets = assetManager.cache;
         const char = characterManager.getCurrent();
         const stats = char.stats || { energy: 50, satiety: 50, sanity: 50, affection: 0 }; 
         
-        // 关键修复：获取素材列表字符串
+        // 1. 获取素材列表
         const charTags = assets.char ? Object.keys(assets.char).join(', ') : '(暂无)';
         const bgTags = assets.bg ? Object.keys(assets.bg).join(', ') : '(暂无)';
         const bgmTags = assets.bgm ? Object.keys(assets.bgm).join(', ') : '(暂无)';
         
+        // 2. === 修改：智能筛选备忘录 (核心记忆全保留) ===
+        let memoSection = "(暂无备忘)";
+        if (char.memos && char.memos.length > 0) {
+            const getCatName = (key) => memoManager.categories[key] ? memoManager.categories[key].name : key;
+            
+            // A. 定义高优先级分类 (这些由于很重要，我们尽量全部保留)
+            const highPriorityTypes = ['secret', 'date', 'like', 'hate'];
+            
+            // B. 分离记忆
+            const coreMemos = char.memos.filter(m => highPriorityTypes.includes(m.topic));
+            const normalMemos = char.memos.filter(m => !highPriorityTypes.includes(m.topic));
+            
+            // C. 组装列表
+            // - 核心记忆：最多取前 100 条 (几乎等于无限，但防止极端情况炸掉)
+            // - 普通记忆：只取最近的 20 条
+            let finalMemos = [
+                ...coreMemos.slice(0, 100),
+                ...normalMemos.slice(0, 20)
+            ];
+
+            // D. 按时间倒序排列 (最新的在前面，方便AI理解现状)
+            // 如果你想让AI更重视旧的约定，也可以不排序，或者按时间正序
+            finalMemos.sort((a, b) => b.id - a.id);
+
+            // E. 生成文本 (精简格式以节省Token)
+            memoSection = finalMemos.map(m => {
+                // 格式: [分类] 内容
+                return `• [${getCatName(m.topic)}]: ${m.content}`;
+            }).join('\n');
+            
+            // F. 添加统计提示
+            if (char.memos.length > finalMemos.length) {
+                memoSection += `\n(注: 还有 ${char.memos.length - finalMemos.length} 条较早的琐碎记录未显示)`;
+            }
+        }
+
         const timeCtx = timeManager.getTimeContext();
 
         return `
@@ -1017,13 +1059,16 @@ const aiEngine = {
         === 你的当前状态 (必须扮演此状态) ===
         ❤️ 好感: ${stats.affection}% | ⚡ 精力: ${stats.energy}% | 🍱 饱腹: ${stats.satiety}% | 🧠 理智: ${stats.sanity}%
         
+        === 📝 绝对核心记忆 (请务必牢记以下所有喜好、约定和秘密) ===
+        ${memoSection}
+        
         === 🎬 可用素材库 (重要: 请在 script 中主动调用) ===
         立绘 (sprite): [${charTags}]
         背景 (bg): [${bgTags}]
         音乐 (bgm): [${bgmTags}]
         天气: "rain", "snow", "sakura", "film", "none"
         
-        === 长期记忆摘要 ===
+        === 长期记忆摘要 (过去发生的剧情梗概) ===
         ${conf.summary}
         
         === 玩家信息 ===
@@ -1034,6 +1079,7 @@ const aiEngine = {
         2. "script": 剧情脚本数组。
            - "visual": { "sprite": "...", "bg": "...", "weather": "..." } (必须填素材库里有的词)
         3. "state_change": (可选) 根据剧情调整状态。
+        4. "memo": (可选) 如果对话中出现了新的重要信息(喜好/约定/秘密)，请生成此字段自动写入备忘录。格式: {"topic": "like/hate/date/diet/secret/default", "content": "..."}
            
         === 示例 ===
         {
@@ -1045,7 +1091,7 @@ const aiEngine = {
                 },
                 { 
                     "type": "dialogue", 
-                    "text": "你终于回来了。", 
+                    "text": "你终于回来了，我还记得你说过不喜欢吃香菜。", 
                     "visual": { "sprite": "smile" }
                 }
             ],
@@ -1168,17 +1214,18 @@ const aiEngine = {
         const now = new Date();
         const timeStr = now.getHours().toString().padStart(2,'0') + ":" + now.getMinutes().toString().padStart(2,'0');
         const dateStr = now.getFullYear() + "-" + (now.getMonth()+1).toString().padStart(2,'0') + "-" + now.getDate().toString().padStart(2,'0');
-
         const compressPrompt = [
-            { role: "system", content: "你是一个剧情记录员。请将以下对话总结为简短的记忆片段。请使用第一人称。" },
+            { role: "system", content: `你现在完全沉浸在角色【${char.name}】中。这是属于你自己的记忆，不是旁观者的记录。
+请以“我”的视角（绝对的第一人称），将以下刚刚发生的对话总结为简短的记忆片段。
+
+【关键要求】
+1. 必须使用“我”来指代自己。
+2. 记录要带有你的主观情绪和想法，而不仅仅是事实陈述。将新对话总结为 1 条或多条关键事件。
+3. 格式严格遵守："[YYYY-MM-DD] <HH:MM> 事件内容"` },
             { role: "user", content: `
 当前长期记忆：${conf.summary}
-需要压缩的新对话：
+刚刚发生的经历（需要压缩）：
 ${JSON.stringify(toSummarize)}
-【格式指令】
-请将新对话总结为 1 条或多条关键事件。
-每条事件必须严格符合此格式：
-"[YYYY-MM-DD] <HH:MM> 事件内容"
 ` }
         ];
 
@@ -1450,11 +1497,6 @@ const journalManager = {
     },
 
     handleDiaryRefresh: async function() {
-        // ... (保持原有的 AI 生成日记逻辑，代码太长此处省略，直接用你原来 script.js 里的即可)
-        // 如果你原来的逻辑是好的，这部分可以不用动，或者如果你需要我完整贴出来请告诉我
-        // 为了确保代码能跑，这里调用原来的同名方法（假设你只是替换对象，内部方法体如果没变的话）
-        
-        // 既然是替换整个对象，我把这个方法的标准逻辑写在这里：
         const btn = document.getElementById('refresh-diary-btn');
         const btnText = document.getElementById('refresh-diary-text');
         
@@ -1469,7 +1511,17 @@ const journalManager = {
             const conf = aiEngine.getConfig(); 
             const memoryContext = char.summary || "（暂无具体的过往记忆）";
             
-            const systemPrompt = `你现在是【${char.name}】。请为【${targetDate}】写一篇日记。第一行写标题，第二行开始写正文。`;
+            const systemPrompt = `你现在完全沉浸在角色【${char.name}】中。
+请以“我”的视角（绝对的第一人称），回想今天（${targetDate}）发生的事情，写一篇私密的日记。
+
+【严苛要求】
+1. 视角锁定：只能用“我”来称呼自己，绝对禁止出现“${char.name}”这种第三人称写法。
+2. 口吻风格：这是写给你自己看的，要展露内心深处真实的想法、犹豫、悸动或吐槽。不要写成流水账。可以完全抛弃事实，专注于情感和感受。
+3. 记忆关联：结合你过往的记忆：${memoryContext}
+
+【格式要求】
+第一行：日记标题（符合你心情的短句，不要包含日期）
+第二行开始：日记正文`;
 
             const res = await fetch(aiEngine.fixUrl(conf.url, "/chat/completions"), {
                 method: "POST",
@@ -1900,6 +1952,27 @@ const journalManager = {
             item.onclick = () => this.loadEntry(dateStr);
             container.appendChild(item);
         });
+    },
+
+    checkDailySettlement: async function() {
+        const char = characterManager.getCurrent();
+        if (!char) return;
+
+        const now = new Date();
+        const todayStr = now.toLocaleDateString('sv-SE'); // YYYY-MM-DD
+
+        // 确保数据结构存在，防止空指针
+        if (!char.journal) char.journal = {};
+
+        // 记录最后一次登录时间
+        localStorage.setItem(`last_login_${char.id}`, todayStr);
+        
+        console.log("每日检查完成:", todayStr);
+        // 如果你想在这里加入跨天自动总结逻辑，可以在以后添加
+    },
+
+    generateDailyEntry: async function() {
+        // 暂时留空，防止报错
     }
 };
 
@@ -2210,29 +2283,43 @@ const weatherManager = {
 };
 
 // ==========================================
-// 13. 功能坞与手账管理器 (NEW)
+// 13. 功能坞管理器 (精简修复版)
 // ==========================================
-
-// 侧边栏管理
 const dockManager = {
     toggle: function() {
         const panel = document.getElementById('dock-panel');
-        if (panel.classList.contains('open')) this.close(); else this.open();
+        if (panel && panel.classList.contains('open')) {
+            this.close();
+        } else {
+            this.open();
+        }
     },
     open: function() {
-        document.getElementById('dock-panel').classList.add('open');
-        this.showHome(); // 每次打开都回到主菜单
+        const panel = document.getElementById('dock-panel');
+        if (panel) {
+            panel.classList.add('open');
+        }
+        
+        this.showHome();
     },
     close: function() {
-        document.getElementById('dock-panel').classList.remove('open');
+        const panel = document.getElementById('dock-panel');
+        if (panel) {
+            panel.classList.remove('open');
+        }
     },
+    
     showHome: function() {
-        document.getElementById('dock-home').classList.remove('hidden');
-        document.getElementById('app-memo').classList.add('hidden');
+        const dockHome = document.getElementById('dock-home');
+        if (dockHome) {
+            dockHome.classList.remove('hidden');
+        }
     }
 };
 
-// 手账管理器 (已升级为功能完善的备忘录)
+// ==========================================
+// 13. 备忘录管理器 (独立窗口版)
+// ==========================================
 const memoManager = {
     // 定义类别和对应的图标
     categories: {
@@ -2245,21 +2332,47 @@ const memoManager = {
     },
     currentFilter: 'all',
 
-    // 打开备忘录界面
+    // === 打开独立窗口 ===
     open: function() {
-        document.getElementById('dock-home').classList.add('hidden');
-        document.getElementById('app-memo').classList.remove('hidden');
+        // 1. 如果侧边功能坞是开着的，先关掉
+        if(typeof dockManager !== 'undefined') dockManager.close();
+
+        // 2. 显示备忘录窗口
+        const modal = document.getElementById('memo-window-modal');
+        if(modal) {
+            modal.classList.remove('invisible', 'opacity-0', 'pointer-events-none');
+            modal.classList.add('modal-open');
+            modal.style.pointerEvents = 'auto';
+        }
+
+        // 3. 渲染内容
         this.renderFilterChips();
         this.render();
     },
 
-    //  渲染所有内容（包括筛选和搜索）
+    // === 关闭独立窗口 ===
+    close: function() {
+        const modal = document.getElementById('memo-window-modal');
+        if(modal) {
+            modal.classList.remove('modal-open');
+            modal.classList.add('opacity-0');
+            modal.style.pointerEvents = 'none';
+            setTimeout(() => {
+                modal.classList.add('invisible');
+            }, 300);
+        }
+    },
+
+    // 渲染列表 (保持原逻辑，适配新ID)
     render: function() {
         const container = document.getElementById('memo-container');
+        if(!container) return;
+        
         const char = characterManager.getCurrent();
         container.innerHTML = "";
 
-        const keyword = document.getElementById('memo-search-input').value.toLowerCase();
+        const searchInput = document.getElementById('memo-search-input');
+        const keyword = searchInput ? searchInput.value.toLowerCase() : "";
         
         let memos = (char.memos || []).filter(memo => {
             const categoryMatch = this.currentFilter === 'all' || memo.topic === this.currentFilter;
@@ -2277,7 +2390,7 @@ const memoManager = {
             const shortDate = new Date(memo.id).toLocaleDateString();
             
             const card = document.createElement('div');
-            card.className = "memo-card";
+            card.className = "memo-card"; 
             card.innerHTML = `
                 <div class="memo-card-header">
                     <i class="ph ${category.icon} memo-card-icon"></i>
@@ -2294,9 +2407,10 @@ const memoManager = {
         });
     },
 
-    // 渲染顶部的筛选按钮
     renderFilterChips: function() {
         const container = document.getElementById('memo-filter-chips');
+        if(!container) return;
+        
         container.innerHTML = `<button onclick="memoManager.filter('all')" class="filter-chip ${this.currentFilter === 'all' ? 'active' : ''}">全部</button>`;
         for (const key in this.categories) {
             const chip = document.createElement('button');
@@ -2307,14 +2421,13 @@ const memoManager = {
         }
     },
 
-    //设置筛选条件并重新渲染
     filter: function(category) {
         this.currentFilter = category;
-        this.renderFilterChips(); // 更新按钮高亮状态
+        this.renderFilterChips(); 
         this.render();
     },
 
-    // 显示新增/编辑弹窗
+    // 显示新增/编辑弹窗 (内部小弹窗)
     showModal: function(memoId = null) {
         const modal = document.getElementById('memo-modal-overlay');
         const title = document.getElementById('memo-modal-title');
@@ -2322,13 +2435,12 @@ const memoManager = {
         const topicSelect = document.getElementById('memo-topic-select');
         const idInput = document.getElementById('memo-edit-id');
         
-        // 动态填充分类选项
         topicSelect.innerHTML = '';
         for (const key in this.categories) {
             topicSelect.innerHTML += `<option value="${key}">${this.categories[key].name}</option>`;
         }
         
-        if (memoId) { // 编辑模式
+        if (memoId) { 
             title.innerText = "编辑备忘";
             const char = characterManager.getCurrent();
             const memo = char.memos.find(m => m.id == memoId);
@@ -2337,7 +2449,7 @@ const memoManager = {
                 topicSelect.value = memo.topic;
                 idInput.value = memo.id;
             }
-        } else { // 新增模式
+        } else {
             title.innerText = "新增备忘";
             contentInput.value = '';
             topicSelect.value = 'default';
@@ -2346,38 +2458,25 @@ const memoManager = {
         modal.classList.remove('hidden');
     },
 
-    // 隐藏弹窗
     hideModal: function() {
         document.getElementById('memo-modal-overlay').classList.add('hidden');
     },
 
-    // 保存备忘录 (处理新增和编辑)
     saveMemo: function() {
         const id = document.getElementById('memo-edit-id').value;
         const topic = document.getElementById('memo-topic-select').value;
         const content = document.getElementById('memo-content-textarea').value.trim();
 
-        if (!content) {
-            alert('内容不能为空！');
-            return;
-        }
+        if (!content) { alert('内容不能为空！'); return; }
 
         const char = characterManager.getCurrent();
         if (!char.memos) char.memos = [];
 
-        if (id) { // 更新
+        if (id) {
             const memo = char.memos.find(m => m.id == id);
-            if (memo) {
-                memo.topic = topic;
-                memo.content = content;
-            }
-        } else { // 新增
-            char.memos.unshift({
-                id: Date.now(),
-                date: new Date().toLocaleString(),
-                topic: topic,
-                content: content
-            });
+            if (memo) { memo.topic = topic; memo.content = content; }
+        } else {
+            char.memos.unshift({ id: Date.now(), date: new Date().toLocaleString(), topic: topic, content: content });
         }
         
         characterManager.save();
@@ -2386,7 +2485,6 @@ const memoManager = {
         this.showToast(id ? '备忘已更新' : '备忘已添加');
     },
 
-    //删除备忘录
     deleteMemo: function(memoId) {
         if (confirm('确定要删除这条备忘吗？')) {
             const char = characterManager.getCurrent();
@@ -2397,26 +2495,16 @@ const memoManager = {
         }
     },
 
-    // AI调用的添加接口
+    // 供 AI 调用的接口
     add: function(topic, content) {
         const char = characterManager.getCurrent();
         if (!char.memos) char.memos = [];
-        
-        // 检查topic是否合法，不合法则归为default
         const legalTopic = this.categories.hasOwnProperty(topic) ? topic : 'default';
-
-        char.memos.unshift({
-            id: Date.now(),
-            date: new Date().toLocaleString(),
-            topic: legalTopic,
-            content: content
-        });
-        
+        char.memos.unshift({ id: Date.now(), date: new Date().toLocaleString(), topic: legalTopic, content: content });
         characterManager.save();
         this.showToast(`AI 写入了新的备忘: "${this.categories[legalTopic].name}"`);
     },
     
-    // Toast通知
     showToast: function(msg) {
         const el = document.getElementById('toast-notification');
         document.getElementById('toast-msg').innerText = msg;

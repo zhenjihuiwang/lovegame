@@ -1503,12 +1503,12 @@ form { padding: 24px; }
 /* 3. 顶部批量操作栏 (Batch Bar) */
 #mem-batch-bar {
     position: absolute; top: 0; left: 0; right: 0;
-    height: 60px;
+    height: 70px;
     background: #D4AF37;
     color: #000;
-    z-index: 100;
+    z-index: 200;
     display: flex; align-items: center; justify-content: space-between;
-    padding: 0 24px;
+    padding: 20px 24px 0 24px;
     font-family: 'JetBrains Mono', monospace;
     font-weight: bold;
     font-size: 12px;
