@@ -347,31 +347,92 @@ const parallaxManager = {
 };
 
 // ==========================================
-// 5. 音频混合器
+// 5. 音频混合器 (优化版：支持 BGM/SFX 混音 + 一次性音效)
 // ==========================================
 const audioManager = {
-    activeSfx: {}, 
+    activeSfx: {}, // 仅存储需要持续播放的“环境音”（如雨声、白噪音）
+
+    // --- 播放 BGM (轨道 1) ---
     playBgm: function(tag) {
-        const url = assetManager.cache.bgm[tag];
         const el = document.getElementById('audio-bgm');
-        if (!url) { if(tag === "") el.pause(); return; }
-        if (!el.src.endsWith(url)) { el.src = url; el.play().catch(e => console.log("BGM Play Error", e)); }
+        // 尝试从 bgm 库找，找不到去 sfx 库找（防止分类选错）
+        const url = assetManager.cache.bgm[tag] || assetManager.cache.sfx[tag];
+
+        // 1. 如果 tag 为空，或者找不到资源，则暂停 BGM
+        if (!tag || !url) {
+            if (!el.paused) {
+                // 简单的淡出效果 (可选)
+                el.pause();
+            }
+            return;
+        }
+
+        // 2. 如果当前已经在播放这首曲子，就不重置进度，继续放
+        if (el.src.endsWith(url)) {
+            if (el.paused) el.play().catch(e => console.warn("BGM Resume Fail:", e));
+            return;
+        }
+
+        // 3. 切换新 BGM
+        el.src = url;
+        el.volume = 0.4; // 【关键】BGM 音量调小，留出空间给音效和人声
+        el.play().catch(e => console.warn("BGM Play Fail:", e));
     },
+
+    // --- 更新音效 (轨道 2~N) ---
+    // tagInput 可以是字符串 "rain"，也可以是数组 ["rain", "fire"]
     updateSfx: function(tagInput) {
         const container = document.getElementById('sfx-container');
         let tags = [];
+        
+        // 归一化输入
         if (Array.isArray(tagInput)) tags = tagInput;
         else if (typeof tagInput === 'string' && tagInput.length > 0) tags = [tagInput];
+
+        // === A. 清理阶段 (只针对循环环境音) ===
+        // 如果当前播放的循环音效（如雨声）不在新的列表里，就停止它
         for (const [activeTag, audioEl] of Object.entries(this.activeSfx)) {
-            if (!tags.includes(activeTag)) { audioEl.pause(); audioEl.remove(); delete this.activeSfx[activeTag]; }
+            if (!tags.includes(activeTag)) {
+                audioEl.pause();
+                audioEl.remove(); // 从 DOM 移除
+                delete this.activeSfx[activeTag];
+            }
         }
+
+        // === B. 添加阶段 ===
         tags.forEach(tag => {
-            if (!this.activeSfx[tag]) {
-                const url = assetManager.cache.sfx[tag];
-                if (url) {
-                    const audio = document.createElement('audio'); audio.src = url; audio.loop = true;
-                    audio.play().catch(e => console.log("SFX Play Error", e));
-                    container.appendChild(audio); this.activeSfx[tag] = audio;
+            // 查找资源 URL
+            const url = assetManager.cache.sfx[tag] || assetManager.cache.bgm[tag];
+            if (!url) return;
+
+            // 【新功能】判断是否是“一次性音效” (One-shot)
+            // 约定：如果标签名以 "_once" 结尾（如 "knock_once"），则不循环
+            const isOneShot = tag.endsWith('_once');
+
+            if (isOneShot) {
+                // --- 处理一次性音效 (如敲门、枪声) ---
+                // 不存入 activeSfx，因为它播完就要消失
+                const audio = new Audio(url);
+                audio.volume = 0.8; // 音效大声一点
+                audio.loop = false; // 不循环
+                audio.play().catch(e => console.warn("SFX One-shot Fail:", e));
+                // 播完自动销毁对象
+                audio.onended = () => { audio.remove(); };
+            } 
+            else {
+                // --- 处理循环环境音 (如雨声、电流声) ---
+                // 只有当它还没播放时才添加
+                if (!this.activeSfx[tag]) {
+                    const audio = document.createElement('audio');
+                    audio.src = url;
+                    audio.loop = true;  // 必须循环
+                    audio.volume = 0.6; // 环境音适中
+                    
+                    // 将元素加入容器 (解决浏览器垃圾回收导致的声音中断问题)
+                    container.appendChild(audio);
+                    
+                    audio.play().catch(e => console.warn("SFX Loop Fail:", e));
+                    this.activeSfx[tag] = audio; // 记录状态
                 }
             }
         });
@@ -379,7 +440,7 @@ const audioManager = {
 };
 
 // ==========================================
-// 6. 角色管理器 (适配新版界面)
+// 6. 角色管理器 (修复版：支持真实属性)
 // ==========================================
 const characterManager = {
     list: [], currentId: null,
@@ -390,29 +451,82 @@ const characterManager = {
             this.list = JSON.parse(savedList);
             this.currentId = localStorage.getItem('current_char_id') || (this.list[0] ? this.list[0].id : null);
         } else {
-            const oldName = localStorage.getItem('conf_charName');
-            if (oldName) {
-                const newChar = {
-                    id: Date.now().toString(), name: oldName, prompt: localStorage.getItem('conf_sysPrompt') || "",
-                    userName: localStorage.getItem('conf_userName') || "玩家", userDesc: localStorage.getItem('conf_userDesc') || "", relation: localStorage.getItem('conf_userRelation') || ""
-                };
-                this.list.push(newChar); this.currentId = newChar.id; this.save();
-            } else { this.createNew(true); }
+            // 首次初始化
+            this.createNew(true); 
         }
+        // 确保当前角色有状态字段
+        this.initStats();
         this.renderList(); this.loadCurrent();
     },
 
-    save: function() { localStorage.setItem('char_list', JSON.stringify(this.list)); if(this.currentId) localStorage.setItem('current_char_id', this.currentId); },
-    
-    createNew: function(silent = false) {
-        const newChar = { id: Date.now().toString(), name: "新角色", prompt: "人设...", summary: "", userName: "玩家", userDesc: "", relation: "初识" };
-        this.list.push(newChar); this.currentId = newChar.id; this.save(); this.renderList(); this.loadCurrent();
-        assetManager.refreshCache(); if(!silent) uiManager.switchTab('persona');
+    save: function() { 
+        localStorage.setItem('char_list', JSON.stringify(this.list)); 
+        if(this.currentId) localStorage.setItem('current_char_id', this.currentId); 
     },
     
+    createNew: function(silent = false) {
+        const newChar = { 
+            id: Date.now().toString(), 
+            name: "新角色", 
+            prompt: "人设...", 
+            summary: "", 
+            userName: "玩家", 
+            userDesc: "", 
+            relation: "初识",
+            // === 新增：初始真实状态 ===
+            stats: {
+                affection: 50, // 初始好感
+                energy: 100,   // 初始精力
+                satiety: 80,   // 初始饱腹
+                sanity: 100,   // 初始理智
+                mood: "平静",
+                thought: "正在观察这个世界..."
+            }
+        };
+        this.list.push(newChar); 
+        this.currentId = newChar.id; 
+        this.save(); 
+        this.renderList(); 
+        this.loadCurrent();
+        if(!silent) uiManager.switchTab('persona');
+    },
+    
+    // 确保旧存档的角色也有 stats 字段
+    initStats: function() {
+        const char = this.getCurrent();
+        if (!char) return;
+        if (!char.stats) {
+            // 根据人设关键词简单推断初始好感
+            let startAff = 50;
+            const p = (char.prompt + char.relation).toLowerCase();
+            if (p.includes('爱') || p.includes('夫妻') || p.includes('恋人')) startAff = 90;
+            else if (p.includes('青梅竹马') || p.includes('朋友')) startAff = 70;
+            else if (p.includes('仇人') || p.includes('讨厌')) startAff = -20;
+
+            char.stats = {
+                affection: startAff,
+                energy: 80,
+                satiety: 70,
+                sanity: 90,
+                mood: "Normal",
+                thought: "..."
+            };
+            this.save();
+        }
+    },
+
     select: function(id) {
-        this.currentId = id; this.save(); this.renderList(); this.loadCurrent();
-        historyManager.init(); aiEngine.init(); assetManager.refreshCache();
+        this.currentId = id; 
+        this.initStats(); // 切换时检查数据完整性
+        this.save(); 
+        this.renderList(); 
+        this.loadCurrent();
+        historyManager.init(); 
+        aiEngine.init(); 
+        assetManager.refreshCache();
+        // 切换角色时，立即刷新左上角状态栏
+        statusManager.updateAll();
+        
         const char = this.getCurrent();
         document.getElementById('char-name').innerText = char.name;
         document.getElementById('dialogue-text').innerText = "...";
@@ -422,60 +536,40 @@ const characterManager = {
         if(this.list.length <= 1) return alert("无法删除最后一个角色");
         if(confirm(`确定删除 ${this.getCurrent().name}?`)) {
             const idx = this.list.findIndex(c => c.id === this.currentId); this.list.splice(idx, 1);
-            localStorage.removeItem(`chat_history_${this.currentId}`); localStorage.removeItem(`ai_context_${this.currentId}`); localStorage.removeItem(`last_interaction_${this.currentId}`);
+            localStorage.removeItem(`chat_history_${this.currentId}`); 
+            localStorage.removeItem(`ai_context_${this.currentId}`); 
+            localStorage.removeItem(`last_interaction_${this.currentId}`);
             this.currentId = this.list[0].id; this.save(); this.select(this.currentId);
         }
     },
     
     getCurrent: function() { return this.list.find(c => c.id === this.currentId) || this.list[0]; },
-    
-    // 【更新】从 UI 读取数据 (适配新的 DOM 结构)
+
     updateCurrentFromUI: function() {
         const char = this.getCurrent(); if(!char) return;
-        // 人设 Tab
-        const nameInput = document.getElementById('persona-name');
-        if(nameInput) char.name = nameInput.value;
-        
-        const promptInput = document.getElementById('persona-prompt');
-        if(promptInput) char.prompt = promptInput.value;
-        
-        const userInput = document.getElementById('user-name');
-        if(userInput) char.userName = userInput.value;
-        
-        const userDesc = document.getElementById('user-desc');
-        if(userDesc) char.userDesc = userDesc.value;
-        
-        const userRel = document.getElementById('user-relation');
-        if(userRel) char.relation = userRel.value;
-        
-        // 【关键】长期记忆现在位于 日记-Memory 视图中
-        const memoryInput = document.getElementById('char-memory');
-        if(memoryInput) char.summary = memoryInput.value;
+        // ... (保持原有的 UI 获取逻辑不变) ...
+        const nameInput = document.getElementById('persona-name'); if(nameInput) char.name = nameInput.value;
+        const promptInput = document.getElementById('persona-prompt'); if(promptInput) char.prompt = promptInput.value;
+        const userInput = document.getElementById('user-name'); if(userInput) char.userName = userInput.value;
+        const userDesc = document.getElementById('user-desc'); if(userDesc) char.userDesc = userDesc.value;
+        const userRel = document.getElementById('user-relation'); if(userRel) char.relation = userRel.value;
+        const memoryInput = document.getElementById('char-memory'); if(memoryInput) char.summary = memoryInput.value;
 
+        // 如果修改了人设，可能需要重置好感度逻辑，这里暂不强制重置
         this.save(); this.renderList();
     },
     
-    // 【更新】加载数据到 UI
     loadCurrent: function() {
         const char = this.getCurrent(); if(!char) return;
-        
-        // 填充人设 Tab
+        // ... (保持原有的 UI 填充逻辑不变) ...
         const elName = document.getElementById('persona-name'); if(elName) elName.value = char.name;
         const elPrompt = document.getElementById('persona-prompt'); if(elPrompt) elPrompt.value = char.prompt;
         const elUser = document.getElementById('user-name'); if(elUser) elUser.value = char.userName;
         const elDesc = document.getElementById('user-desc'); if(elDesc) elDesc.value = char.userDesc;
         const elRel = document.getElementById('user-relation'); if(elRel) elRel.value = char.relation;
-        
-        // 填充对话框名字
         const elCharName = document.getElementById('char-name'); if(elCharName) elCharName.innerText = char.name;
-
-        // 【关键】填充长期记忆到日记视图的隐藏输入框
-        const elMem = document.getElementById('char-memory'); 
-        if(elMem) elMem.value = char.summary || "";
-        
-        // 填充阈值设置
-        const elThres = document.getElementById('memory-threshold');
-        if(elThres) elThres.value = localStorage.getItem('conf_threshold') || 20;
+        const elMem = document.getElementById('char-memory'); if(elMem) elMem.value = char.summary || "";
+        const elThres = document.getElementById('memory-threshold'); if(elThres) elThres.value = localStorage.getItem('conf_threshold') || 20;
     },
     
     renderList: function() {
@@ -798,7 +892,7 @@ const dataManager = {
 };
 
 // ==========================================
-// 10. AI 引擎 (支持带日期的记忆压缩)
+// 10. AI 引擎 (修复版：找回立绘与背景)
 // ==========================================
 const aiEngine = {
     history: [], currentMode: 'dialogue', isCompressing: false,
@@ -884,9 +978,13 @@ const aiEngine = {
     triggerGreeting: function() {
         const conf = this.getConfig();
         if (!conf.key) return;
-        if(this.history.length === 0) this.history.push({ role: "system", content: this.buildSystemPrompt() });
+        if(this.history.length === 0 || this.history[0].role !== "system") {
+            this.history.unshift({ role: "system", content: this.buildSystemPrompt() });
+        } else {
+            this.history[0].content = this.buildSystemPrompt();
+        }
         const timeCtx = timeManager.getTimeContext();
-        const greetingPrompt = `[事件: APP启动] 时间: ${timeCtx.fullTime} (${timeCtx.timeOfDay}). 间隔: ${timeCtx.interval} 节日: ${timeCtx.festival}. 任务: 生成开场剧情。`;
+        const greetingPrompt = `[事件: APP启动/用户上线] 时间: ${timeCtx.fullTime}. 状态: 请根据当前【精力/心情】决定开场白。`;
         this.history.push({ role: "user", content: greetingPrompt });
         this.request();
     },
@@ -896,16 +994,18 @@ const aiEngine = {
         this.request();
     },
 
-    // 构建 System Prompt
+    // 构建 System Prompt (修复版：加回素材列表)
     buildSystemPrompt: function() {
         const conf = this.getConfig();
         const assets = assetManager.cache;
+        const char = characterManager.getCurrent();
+        const stats = char.stats || { energy: 50, satiety: 50, sanity: 50, affection: 0 }; 
         
-        // 获取素材列表，告诉 AI 它有什么资源可用
-        const charTags = Object.keys(assets.char).join(', ');
-        const bgTags = Object.keys(assets.bg).join(', ');
-        const bgmTags = Object.keys(assets.bgm).join(', ');
-        const sfxTags = Object.keys(assets.sfx).join(', ');
+        // 关键修复：获取素材列表字符串
+        const charTags = assets.char ? Object.keys(assets.char).join(', ') : '(暂无)';
+        const bgTags = assets.bg ? Object.keys(assets.bg).join(', ') : '(暂无)';
+        const bgmTags = assets.bgm ? Object.keys(assets.bgm).join(', ') : '(暂无)';
+        
         const timeCtx = timeManager.getTimeContext();
 
         return `
@@ -914,58 +1014,42 @@ const aiEngine = {
         === 你的角色设定 ===
         ${conf.sysPrompt}
         
+        === 你的当前状态 (必须扮演此状态) ===
+        ❤️ 好感: ${stats.affection}% | ⚡ 精力: ${stats.energy}% | 🍱 饱腹: ${stats.satiety}% | 🧠 理智: ${stats.sanity}%
+        
+        === 🎬 可用素材库 (重要: 请在 script 中主动调用) ===
+        立绘 (sprite): [${charTags}]
+        背景 (bg): [${bgTags}]
+        音乐 (bgm): [${bgmTags}]
+        天气: "rain", "snow", "sakura", "film", "none"
+        
         === 长期记忆摘要 ===
         ${conf.summary}
         
         === 玩家信息 ===
-        姓名: ${conf.userName} | 描述: ${conf.userDesc} | 关系: ${conf.relation}
-        当前时间: ${timeCtx.fullTime} (${timeCtx.timeOfDay})
+        ${conf.userName} | ${conf.userDesc} | ${timeCtx.fullTime}
         
-        ==============================================================
-        【⚡ 绝对核心指令 - 违反将被系统惩罚 ⚡】
-        ==============================================================
-        
-        1. **严禁使用括号动作**：
-           ❌ 错误: { "type": "dialogue", "text": "(无奈地叹气) 你真是个笨蛋。" }
-           ✅ 正确: 
-           [
-               { "type": "narration", "text": "${conf.charName} 无奈地叹了一口气，眼神中带着一丝宠溺。" },
-               { "type": "dialogue", "text": "你真是个笨蛋。" }
-           ]
-
-        2. **拒绝一句话回复**：
-           请尽量生成 **2 到 4 个步骤** 的剧本。
-           不要干巴巴地说话，要先用 'narration' 描写你的表情、动作、心理活动或环境氛围，然后再接 'dialogue'。
-
-        3. **格式要求**：
-           - 必须返回标准 JSON 格式。
-           - 严禁包含 markdown 标记（如 \`\`\`json）。
+        === 核心指令 (JSON Output) ===
+        1. 返回标准 JSON。
+        2. "script": 剧情脚本数组。
+           - "visual": { "sprite": "...", "bg": "...", "weather": "..." } (必须填素材库里有的词)
+        3. "state_change": (可选) 根据剧情调整状态。
            
-        4. **素材调用能力 (Visual & Audio)**：
-           请根据剧情主动切换立绘和背景，增强演出效果。
-           - 可用立绘(sprite): [${charTags}] (仅使用列表内的词，没有则不填)
-           - 可用背景(bg): [${bgTags}]
-           - 可用音乐(bgm): [${bgmTags}]
-           - 环境特效(weather): "none", "rain", "snow", "sakura", "film"
-           
-        5. **记忆与手账**:
-           如果玩家提到了新的重要喜好或约定，请在 JSON 根对象中包含 "memo" 字段记录下来。
-
-        === 最终输出 JSON 结构示例 ===
+        === 示例 ===
         {
             "script": [
                 { 
                     "type": "narration", 
-                    "text": "看着窗外的雨，心中泛起一丝涟漪...", 
+                    "text": "外面的雨还在下...", 
                     "visual": { "bg": "room_rain", "weather": "rain" } 
                 },
                 { 
                     "type": "dialogue", 
-                    "text": "这场雨下得真久啊，你带伞了吗？", 
-                    "visual": { "sprite": "worry", "zoom": 1.1 },
-                    "audio": { "sfx": "rain_heavy" }
+                    "text": "你终于回来了。", 
+                    "visual": { "sprite": "smile" }
                 }
-            ]
+            ],
+            "state_change": { "affection": 2, "mood": "开心" }
         }
         `;
     },
@@ -975,10 +1059,14 @@ const aiEngine = {
         if(!conf.key) return alert("请先配置 API Key");
         const btn = document.getElementById('trigger-btn');
         btn.innerHTML = `<i class="ph ph-spinner animate-spin"></i>`;
+        
+        let responseObj = null;
+        let content = "";
 
         try {
             const chatUrl = this.fixUrl(conf.url, "/chat/completions");
             
+            // 确保 Prompt 是最新的
             if (this.history.length === 0 || this.history[0].role !== "system") {
                 this.history.unshift({ role: "system", content: this.buildSystemPrompt() });
             } else {
@@ -991,51 +1079,72 @@ const aiEngine = {
                 body: JSON.stringify({ model: conf.model, messages: this.history, temperature: 0.7 })
             });
             const data = await res.json();
-            let content = data.choices[0].message.content.replace(/```json/g, "").replace(/```/g, "").trim();
+            
+            content = data.choices[0].message.content;
+            const cleanContent = content.replace(/```json/g, "").replace(/```/g, "").trim();
             
             try {
-                const responseObj = JSON.parse(content);
-                if (responseObj.script && Array.isArray(responseObj.script)) {
-                    responseObj.script.forEach(step => {
-                        if (step.type === 'dialogue') {
-                            // 正则表达式：删除 () 或 （） 中的内容
-                            // 并在控制台警告，方便调试
-                            if (/[\(（].*?[\)）]/.test(step.text)) {
-                                console.warn("清洗了括号内容:", step.text);
-                                step.text = step.text.replace(/[\(（].*?[\)）]/g, "").trim();
-                            }
-                        }
-                    });
-                }
-                if (responseObj.memo) memoManager.add(responseObj.memo.topic, responseObj.memo.content);
-                if (responseObj.script && Array.isArray(responseObj.script)) {
-                    director.loadScript(responseObj.script);
-                    this.history.push({ role: "assistant", content: content });
-                    responseObj.script.forEach(step => historyManager.add(step.type, step.text));
-                } else { throw new Error("Format error"); }
-            } catch(e) {
-                director.loadScript([{ type: 'dialogue', text: responseObj?.text || content }]);
-                historyManager.add('dialogue', responseObj?.text || content);
-                this.history.push({ role: "assistant", content: content });
+                responseObj = JSON.parse(cleanContent);
+            } catch (e) {
+                console.warn("JSON Parse Failed, using raw text", e);
+                responseObj = { text: cleanContent }; 
             }
+
+            // 1. 状态变更
+            if (responseObj && responseObj.state_change) {
+                const char = characterManager.getCurrent();
+                const change = responseObj.state_change;
+                if (char.stats) {
+                    if (typeof change.energy === 'number') char.stats.energy = Math.min(100, Math.max(0, char.stats.energy + change.energy));
+                    if (typeof change.satiety === 'number') char.stats.satiety = Math.min(100, Math.max(0, char.stats.satiety + change.satiety));
+                    if (typeof change.sanity === 'number') char.stats.sanity = Math.min(100, Math.max(0, char.stats.sanity + change.sanity));
+                    if (typeof change.affection === 'number') char.stats.affection = Math.max(-100, char.stats.affection + change.affection);
+                    if (change.mood) char.stats.mood = change.mood;
+                    if (change.thought) char.stats.thought = change.thought;
+                    characterManager.save();
+                    if(statusManager && statusManager.updateCore) statusManager.updateCore(); 
+                }
+            }
+
+            // 2. 备忘录
+            if (responseObj && responseObj.memo) memoManager.add(responseObj.memo.topic, responseObj.memo.content);
+
+            // 3. 剧情脚本
+            let finalScript = [];
+            if (responseObj && responseObj.script && Array.isArray(responseObj.script)) {
+                finalScript = responseObj.script.map(step => {
+                    if (!step.text && step.content) step.text = step.content;
+                    if (!step.text) step.text = "...";
+                    step.text = step.text.replace(/[\(（].*?[\)）]/g, "").trim();
+                    return step;
+                });
+            } else if (responseObj && (responseObj.text || responseObj.content)) {
+                finalScript = [{ type: 'dialogue', text: responseObj.text || responseObj.content }];
+            } else {
+                finalScript = [{ type: 'dialogue', text: content }]; 
+            }
+
+            director.loadScript(finalScript);
+            
+            this.history.push({ role: "assistant", content: content });
+            finalScript.forEach(step => historyManager.add(step.type, step.text));
             
             this.saveContext();
             timeManager.updateLastInteraction();
             this.checkAndCompress();
 
         } catch(e) {
-            director.loadScript([{ type: 'narration', text: `连接错误: ${e.message}` }]);
+            console.error("Request Error:", e);
+            director.loadScript([{ type: 'narration', text: `(连接中断: ${e.message})` }]);
         } finally {
-            btn.innerHTML = `<i class="ph ph-sparkle text-xl"></i>`;
+            btn.innerHTML = `<i class="ph ph-sparkle"></i>`;
         }
     },
 
     checkAndCompress: function() {
         if (this.isCompressing) return;
-        // 【关键】读取新位置的阈值设置
         const thresholdInput = document.getElementById('memory-threshold');
         const limit = thresholdInput ? parseInt(thresholdInput.value) : 20;
-        
         if (this.history.length > limit + 1 && this.history.length > 5) {
             this.forceSummarize();
         }
@@ -1056,7 +1165,6 @@ const aiEngine = {
         const toSummarize = this.history.slice(1, this.history.length - keepCount);
         const activeContext = this.history.slice(this.history.length - keepCount);
         
-        // 获取当前精确时间
         const now = new Date();
         const timeStr = now.getHours().toString().padStart(2,'0') + ":" + now.getMinutes().toString().padStart(2,'0');
         const dateStr = now.getFullYear() + "-" + (now.getMonth()+1).toString().padStart(2,'0') + "-" + now.getDate().toString().padStart(2,'0');
@@ -1065,19 +1173,12 @@ const aiEngine = {
             { role: "system", content: "你是一个剧情记录员。请将以下对话总结为简短的记忆片段。请使用第一人称。" },
             { role: "user", content: `
 当前长期记忆：${conf.summary}
-
 需要压缩的新对话：
 ${JSON.stringify(toSummarize)}
-
 【格式指令】
 请将新对话总结为 1 条或多条关键事件。
 每条事件必须严格符合此格式：
 "[YYYY-MM-DD] <HH:MM> 事件内容"
-
-⚠️ 重要：
-1. 日期使用：${dateStr}
-2. 时间使用：${timeStr} (如果对话中有明确的时间流逝，可在此基础上微调，否则直接使用该时间)
-3. 必须包含 <HH:MM> 尖括号时间，否则系统无法识别！
 ` }
         ];
 
@@ -1091,17 +1192,14 @@ ${JSON.stringify(toSummarize)}
             const data = await res.json();
             let newSummary = data.choices[0].message.content;
 
-            // 简单清洗，防止AI没写日期
             if (!newSummary.includes('[20')) {
                  newSummary = `[${dateStr}] <${timeStr}> ` + newSummary;
             }
 
             const char = characterManager.getCurrent();
             char.summary = (char.summary || "") + "\n" + newSummary;
-            
             characterManager.save();
             
-            // 同步UI
             const memoryTextarea = document.getElementById('char-memory');
             if (memoryTextarea) memoryTextarea.value = char.summary;
             
@@ -1114,7 +1212,6 @@ ${JSON.stringify(toSummarize)}
                 ...activeContext
             ];
             this.saveContext();
-            
             memoManager.showToast("✅ 记忆已归档");
 
         } catch (e) {
@@ -1124,7 +1221,6 @@ ${JSON.stringify(toSummarize)}
             this.isCompressing = false;
         }
     }
-
 };
 
 // ==========================================
@@ -2079,4 +2175,132 @@ const memoManager = {
     }
 };
 
-  
+// ==========================================
+// 16. 状态监视器 
+// ==========================================
+const statusManager = {
+    isOpen: false,
+    // 模拟数据 (后续可接到 characterManager 的真实数据中)
+    vitals: {
+        affection: 85,    // 同步率
+        energy: 60,       // 精力 (0-100)
+        satiety: 40,      // 饱腹 (0-100)
+        sanity: 90,       // 理智 (0-100)
+        moodColor: '#D4AF37', // 心情颜色
+        thoughts: ["外面的雨声让人安心。", "什么时候能见到你呢？", "稍微有点困了...", "今天发生了很多事。"]
+    },
+    
+    toggle: function() {
+        const panel = document.getElementById('status-panel');
+        this.isOpen = !this.isOpen;
+        if (this.isOpen) {
+            panel.classList.add('panel-open');
+            this.updateAll(); 
+        } else {
+            panel.classList.remove('panel-open');
+        }
+    },
+
+    switchTab: function(tabName) {
+        document.querySelectorAll('.status-view').forEach(el => el.classList.add('hidden'));
+        // 注意：HTML里id叫 status-view-core，传参 tabName='core'
+        document.getElementById(`status-view-${tabName}`).classList.remove('hidden');
+        
+        document.querySelectorAll('.status-tab').forEach(btn => {
+            btn.classList.remove('active', 'text-[#D4AF37]');
+            btn.classList.add('text-gray-600');
+            if(btn.dataset.tab === tabName) {
+                btn.classList.add('active', 'text-[#D4AF37]');
+                btn.classList.remove('text-gray-600');
+            }
+        });
+    },
+
+    updateAll: function() {
+        this.updateMediaInfo();
+        this.updateWeather();
+        this.updateCore(); // 新增：刷新核心状态
+    },
+
+    // 更新 CORE 界面 
+    updateCore: function() {
+        const char = characterManager.getCurrent();
+        // 如果数据还没初始化，先用默认值防报错
+        const stats = char ? (char.stats || { affection: 0, energy: 50, satiety: 50, sanity: 50, thought: "..." }) : {};
+
+        // 1. 同步率与心情
+        const affEl = document.getElementById('core-aff-num');
+        const moodEl = document.getElementById('core-mood-glow');
+        
+        affEl.innerText = stats.affection + "%";
+        
+        // 动态改变心情光晕颜色
+        let moodColor = '#D4AF37'; // 默认金
+        if (stats.affection > 100) moodColor = '#ec4899'; // 爆表粉
+        else if (stats.affection < 0) moodColor = '#3b82f6'; // 破裂蓝
+        else if (stats.sanity < 40) moodColor = '#ef4444'; // 疯狂红
+        
+        moodEl.style.backgroundColor = moodColor;
+
+        // 2. 渲染思维流 (显示 AI 返回的 thought)
+        const stream = document.getElementById('core-thought-stream');
+        if(stream && stats.thought) {
+            // 对比一下内容，如果变了才更新，避免动画频繁闪烁
+            if (!stream.innerHTML.includes(stats.thought)) {
+                stream.innerHTML = `<div class="thought-item">"${stats.thought}"</div>`;
+            }
+        }
+
+        // 3. 渲染生理指标点阵 (读取真实数值)
+        this.renderDots('dots-energy', stats.energy);
+        this.renderDots('dots-satiety', stats.satiety);
+        this.renderDots('dots-sanity', stats.sanity);
+    },
+
+    // 辅助函数：生成点阵
+    renderDots: function(containerId, value) {
+        const container = document.getElementById(containerId);
+        if(!container) return;
+        container.innerHTML = '';
+        const totalDots = 10; // 总共10个点
+        const activeDots = Math.floor(value / 10); // 比如 65 -> 6个点
+        
+        for (let i = 0; i < totalDots; i++) {
+            const dot = document.createElement('div');
+            dot.className = 'v-dot';
+            if (i < activeDots) {
+                dot.classList.add('active');
+                // 如果数值过低 (小于30%)，显示警告色
+                if (activeDots < 3) dot.classList.add('warning');
+            }
+            container.appendChild(dot);
+        }
+    },
+
+    updateMediaInfo: function() {
+        const bgmEl = document.getElementById('audio-bgm');
+        const bgmNameEl = document.getElementById('status-bgm-name');
+        const sfxNameEl = document.getElementById('status-sfx-name');
+        if (bgmEl && !bgmEl.paused && bgmEl.src) {
+            let name = decodeURIComponent(bgmEl.src.split('/').pop());
+            if (name.includes('_')) name = name.split('_').slice(1).join('_'); 
+            bgmNameEl.innerText = name || "Unknown Track";
+            bgmNameEl.classList.add('text-[#D4AF37]');
+        } else {
+            bgmNameEl.innerText = "No Music Playing";
+            bgmNameEl.classList.remove('text-[#D4AF37]');
+        }
+        const activeSfx = Object.keys(audioManager.activeSfx);
+        sfxNameEl.innerText = activeSfx.length > 0 ? "SFX: " + activeSfx.join(", ") : "No SFX";
+    },
+
+    updateWeather: function() {
+        document.getElementById('weather-text-local').innerText = `Local --°C`; 
+        const aiEnv = weatherManager.current || "none";
+        let text = "Clear", icon = "ph-sun";
+        if (aiEnv === 'rain') { text = "Rainy"; icon = "ph-cloud-rain"; }
+        else if (aiEnv === 'snow') { text = "Snowy"; icon = "ph-snowflake"; }
+        document.getElementById('weather-text-ai').innerText = `${text}`;
+        document.getElementById('weather-icon-ai').className = `ph-fill ${icon} text-lg text-[#D4AF37] mb-1`;
+    }
+};

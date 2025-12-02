@@ -35,6 +35,136 @@
 
         <!-- UI 层 -->
         <div class="layer-ui flex flex-col justify-between p-6">
+            
+            <!-- ==== 左上角状态监视器==== -->
+            <div class="absolute top-6 left-6 z-50 pointer-events-auto font-sans">
+    
+                <!-- 1. 常驻小胶囊  -->
+                <button onclick="statusManager.toggle()" id="status-trigger" class="flex items-center gap-3 bg-black/40 backdrop-blur-md border border-white/10 rounded-full pl-1 pr-4 py-1 hover:bg-black/60 hover:border-[#D4AF37]/50 transition-all group">
+                    <div class="w-6 h-6 rounded-full bg-[#D4AF37] flex items-center justify-center text-black text-xs group-hover:scale-110 transition-transform">
+                        <i class="ph-fill ph-broadcast"></i>
+                    </div>
+                    <div class="flex flex-col items-start leading-none">
+                        <span class="text-[8px] text-[#D4AF37] tracking-widest font-bold">SYSTEM</span>
+                        <span class="text-[10px] text-gray-300 font-serif" id="mini-status-text">Online</span>
+                    </div>
+                </button>
+
+    <!-- 2. 展开后的毛玻璃面板 (默认隐藏) -->
+    <div id="status-panel" class="absolute top-10 left-0 w-[260px] bg-[#1a1a1a]/80 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-2xl opacity-0 pointer-events-none transition-all duration-300 scale-95 origin-top-left">
+        
+        <!-- 面板顶部：标签页切换 -->
+
+        <div class="flex border-b border-white/10 pb-2 mb-3 gap-4">
+            <button onclick="statusManager.switchTab('main')" class="status-tab active text-[10px] font-bold text-[#D4AF37] tracking-widest hover:text-white" data-tab="main">环境</button>
+            <button onclick="statusManager.switchTab('core')" class="status-tab text-[10px] font-bold text-gray-600 tracking-widest hover:text-white" data-tab="core">核心</button>
+            <button onclick="statusManager.switchTab('sys')"  class="status-tab text-[10px] font-bold text-gray-600 tracking-widest hover:text-white" data-tab="sys">系统</button>
+            <button onclick="statusManager.toggle()" class="ml-auto text-gray-500 hover:text-white"><i class="ph ph-x"></i></button>
+        </div>
+
+        <!-- 内容区域 -->
+        <div id="status-content">
+            
+            <!-- Tab 1: MAIN (视听与环境) -->
+            <div id="status-view-main" class="status-view space-y-3">
+                
+                <!-- 音乐卡片 -->
+                <div>
+                    <div class="text-[9px] text-gray-500 mb-1 tracking-wider">NOW PLAYING</div>
+                    <div class="flex items-center gap-3 bg-black/20 p-2 rounded-lg border border-white/5">
+                        <div class="w-8 h-8 bg-[#D4AF37]/20 rounded flex items-center justify-center text-[#D4AF37]">
+                            <i class="ph-fill ph-music-note"></i>
+                        </div>
+                        <div class="flex-1 overflow-hidden">
+                            <div id="status-bgm-name" class="text-[10px] text-white truncate font-serif">No Signal</div>
+                            <div id="status-sfx-name" class="text-[9px] text-gray-500 truncate">Silence</div>
+                        </div>
+                        <i class="ph ph-waveform text-[#D4AF37] animate-pulse"></i>
+                    </div>
+                </div>
+
+                <!-- 天气同步对比 -->
+                <div>
+                    <div class="text-[9px] text-gray-500 mb-1 tracking-wider">ENV SYNC (WEATHER)</div>
+                    <div class="flex gap-2">
+                        <!-- 用户端 (自动获取) -->
+                        <div class="flex-1 bg-white/5 rounded p-2 text-center border border-white/5">
+                            <div class="text-[8px] text-gray-400 mb-1">LOCAL (YOU)</div>
+                            <i id="weather-icon-local" class="ph ph-cloud text-lg text-gray-300 mb-1"></i>
+                            <div id="weather-text-local" class="text-[10px] font-bold">--°C</div>
+                        </div>
+                        <!-- AI端 (基于设定) -->
+                        <div class="flex-1 bg-[#D4AF37]/10 rounded p-2 text-center border border-[#D4AF37]/30 relative overflow-hidden">
+                            <div class="absolute -right-2 -top-2 w-6 h-6 bg-[#D4AF37] blur-lg opacity-20"></div>
+                            <div class="text-[8px] text-[#D4AF37] mb-1">HOST (HIM)</div>
+                            <i id="weather-icon-ai" class="ph-fill ph-cloud-rain text-lg text-[#D4AF37] mb-1"></i>
+                            <div id="weather-text-ai" class="text-[10px] font-bold text-[#D4AF37]">Syncing...</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Tab 2: CORE (核心状态 - 灵魂链接) -->
+<div id="status-view-core" class="status-view hidden">
+    
+    <div class="text-[9px] text-gray-600 tracking-[0.2em] text-center mb-2 uppercase">Consciousness // 意识</div>
+
+    <!-- 灵魂球 -->
+    <div class="soul-orb">
+        <div id="core-aff-num" class="text-xl text-[#D4AF37] font-serif font-bold">--%</div>
+        <div class="text-[7px] text-gray-500 uppercase tracking-widest mt-1">同步率</div>
+        <!-- 情感色块背景 -->
+        <div id="core-mood-glow" class="mood-glow"></div>
+    </div>
+
+    <!-- 思维流 -->
+    <div class="mb-1 flex justify-between items-end">
+        <span class="text-[8px] text-gray-600 tracking-widest uppercase">Thought Stream</span>
+        <i class="ph-fill ph-chat-teardrop-text text-gray-700 text-xs"></i>
+    </div>
+    <div class="thought-stream" id="core-thought-stream">
+        <div class="thought-item">正在建立神经链接...</div>
+    </div>
+
+    <!-- 生理指标 -->
+    <div class="text-[9px] text-gray-600 tracking-[0.2em] mb-2 mt-4 uppercase border-t border-white/5 pt-2">Physiology // 生理</div>
+
+    <!-- 精力 -->
+    <div class="vital-card">
+        <div class="vital-label"><i class="ph-fill ph-lightning text-gray-500"></i> 精力</div>
+        <div class="vital-dots" id="dots-energy"></div>
+    </div>
+
+    <!-- 饱腹 -->
+    <div class="vital-card">
+        <div class="vital-label"><i class="ph-fill ph-hamburger text-gray-500"></i> 饱腹</div>
+        <div class="vital-dots" id="dots-satiety"></div>
+    </div>
+
+    <!-- 理智 -->
+    <div class="vital-card">
+        <div class="vital-label"><i class="ph-fill ph-brain text-gray-500"></i> 理智</div>
+        <div class="vital-dots" id="dots-sanity"></div>
+    </div>
+</div>
+
+            <!-- Tab 3: SYS (未来扩展预留) -->
+            <div id="status-view-sys" class="status-view hidden space-y-2">
+                <div class="flex justify-between text-[9px] text-gray-400 border-b border-white/5 pb-1">
+                    <span>UPTIME</span> <span class="text-white font-mono">03:12:45</span>
+                </div>
+                <div class="flex justify-between text-[9px] text-gray-400 border-b border-white/5 pb-1">
+                    <span>LATENCY</span> <span class="text-green-400 font-mono">24ms</span>
+                </div>
+                <div class="flex justify-between text-[9px] text-gray-400">
+                    <span>VERSION</span> <span class="text-white font-mono">LoveOS v1.2</span>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
             <!-- 顶部按钮 -->
             <div class="flex justify-end pt-2 pointer-events-auto gap-4">
                 <button onclick="uiManager.openSettings()" class="text-white/50 hover:text-[#D4AF37] transition">

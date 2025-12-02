@@ -1257,3 +1257,99 @@ form { padding: 24px; }
     min-height: 60px; margin-bottom: 8px;
 }
 .inline-editor:focus { border-color: #D4AF37; }
+/* ==== 状态监视器样式 ==== */
+.status-tab.active {
+    color: #D4AF37;
+    position: relative;
+}
+.status-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -9px; /* 对齐到底部边框 */
+    left: 0; right: 0;
+    height: 2px;
+    background: #D4AF37;
+    box-shadow: 0 0 8px #D4AF37;
+}
+
+/* 面板展开动画类 */
+.panel-open {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    transform: scale(1) !important;
+}
+
+/* =========================================
+   CORE (灵魂链接) 界面样式
+   ========================================= */
+
+/* 1. 灵魂球容器 */
+.soul-orb {
+    width: 80px; height: 80px;
+    margin: 10px auto 16px;
+    border-radius: 50%;
+    border: 1px solid rgba(212, 175, 55, 0.3);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    position: relative;
+    box-shadow: 0 0 20px rgba(212,175,55,0.05);
+    background: radial-gradient(circle at 30% 30%, rgba(212, 175, 55, 0.1), transparent 60%);
+}
+
+/* 呼吸光环动画 */
+.soul-orb::before {
+    content: ''; position: absolute; inset: -3px;
+    border-radius: 50%;
+    border: 1px dashed rgba(212, 175, 55, 0.2);
+    animation: rotate-orb 10s linear infinite;
+}
+@keyframes rotate-orb { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+/* 情感光晕背景 */
+.mood-glow {
+    position: absolute; inset: 0; rounded-full;
+    filter: blur(15px); opacity: 0.3;
+    background: #D4AF37; /* 默认金色，JS可改 */
+    transition: background-color 1s ease;
+    z-index: -1;
+}
+
+/* 2. 思维流 (文字滚动) */
+.thought-stream {
+    height: 50px;
+    overflow: hidden;
+    position: relative;
+    margin-bottom: 20px;
+    border-left: 2px solid rgba(255,255,255,0.05);
+    padding-left: 12px;
+}
+.thought-item {
+    font-size: 10px; color: #aaa; margin-bottom: 4px;
+    opacity: 0; animation: fade-slide-up 4s infinite;
+    font-family: "Noto Serif SC", serif; font-style: italic;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+@keyframes fade-slide-up {
+    0% { opacity: 0; transform: translateY(10px); }
+    15% { opacity: 1; transform: translateY(0); }
+    85% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-10px); }
+}
+
+/* 3. 生理指标卡片 (点阵风格) */
+.vital-card {
+    background: rgba(255,255,255,0.03);
+    padding: 6px 10px; margin-bottom: 6px;
+    border-radius: 4px; border: 1px solid rgba(255,255,255,0.05);
+    display: flex; justify-content: space-between; align-items: center;
+}
+.vital-label {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 9px; color: #888; font-family: sans-serif; letter-spacing: 1px;
+}
+.vital-dots { display: flex; gap: 2px; }
+.v-dot {
+    width: 3px; height: 3px; background: #333; border-radius: 50%; transition: all 0.3s;
+}
+.v-dot.active { background: #D4AF37; box-shadow: 0 0 4px rgba(212, 175, 55, 0.5); }
+.v-dot.warning { background: #ef4444; box-shadow: 0 0 4px rgba(239, 68, 68, 0.5); }
