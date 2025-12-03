@@ -30,7 +30,7 @@ body { background-color: #000; overflow: hidden; font-family: "PingFang SC", "Mi
 .editorial-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 16px; min-height: 24px; }
 .name-gold { color: #D4AF37; font-size: 20px; font-style: italic; font-weight: 700; line-height: 1; text-transform: uppercase; transition: opacity 0.3s; }
 .narration-mode { border-left-color: #444; }
-.narration-mode .name-gold { opacity: 0; } 
+.narration-mode .name-gold { opacity: 0; }
 .narration-mode .text-content { color: #aaa; font-style: italic; }
 .log-btn { font-size: 10px; letter-spacing: 2px; color: #666; border-bottom: 1px solid #666; padding-bottom: 2px; cursor: pointer; transition: all 0.3s; }
 .log-btn:hover { color: #fff; border-color: #fff; }
@@ -50,10 +50,10 @@ body { background-color: #000; overflow: hidden; font-family: "PingFang SC", "Mi
 .scope-chip.active { border-color: #D4AF37; color: #D4AF37; background: rgba(212, 175, 55, 0.05); }
 
 /* ==== 标签胶囊样式 ==== */
-.tag-chip { 
-    padding: 2px 8px; font-size: 9px; border: 1px solid #444; 
+.tag-chip {
+    padding: 2px 8px; font-size: 9px; border: 1px solid #444;
     color: #888; background: #1a1a1a; border-radius: 2px;
-    cursor: pointer; white-space: nowrap; transition: all 0.15s; font-family: 'Inter', monospace; 
+    cursor: pointer; white-space: nowrap; transition: all 0.15s; font-family: 'Inter', monospace;
 }
 .tag-chip:hover { border-color: #D4AF37; color: #D4AF37; }
 .tag-chip:active { transform: scale(0.95); }
@@ -84,66 +84,58 @@ body { background-color: #000; overflow: hidden; font-family: "PingFang SC", "Mi
 @keyframes rotate-sparkle { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
 /* =========================================
-   高级感输入栏样式 (终极修复版)
+   高级感输入栏样式
    ========================================= */
 
-/* 1. 整体容器 */
 .input-glass-bar {
     display: flex;
     align-items: center;
-    justify-content: space-between; /* 确保内容两端对齐 */
+    justify-content: space-between;
     width: 100%;
     height: 56px;
     background: rgba(10, 10, 10, 0.85);
     backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 100px;
-    
-    /* 核心布局修复 */
-    box-sizing: border-box; 
-    padding: 0 8px 0 20px; /* 左宽右窄，给按钮留空间 */
-    flex-wrap: nowrap; /* 严禁换行 */
-    
+    box-sizing: border-box;
+    padding: 0 8px 0 20px;
+    flex-wrap: nowrap;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
     transition: all 0.3s;
     pointer-events: auto;
     margin-top: auto;
 }
 
-/* 激活时光效 */
 .input-glass-bar:focus-within {
     border-color: rgba(212, 175, 55, 0.5);
     box-shadow: 0 8px 40px rgba(212, 175, 55, 0.15);
 }
 
-/* 2. 左侧模式切换 */
 .mode-switch-text {
     font-size: 10px;
     color: #666;
-    letter-spacing: 1px; /* 稍微减小字间距以节省手机空间 */
+    letter-spacing: 1px;
     text-transform: uppercase;
     font-weight: 600;
-    white-space: nowrap; /* 不许换行 */
-    flex-shrink: 0; /* 不许被挤压 */
+    white-space: nowrap;
+    flex-shrink: 0;
     cursor: pointer;
     transition: color 0.3s;
 }
 .mode-switch-text:hover { color: #D4AF37; }
 
-/* 3. 竖线分割 */
 .input-divider {
     width: 1px;
     height: 16px;
     background: rgba(255, 255, 255, 0.15);
-    margin: 0 12px; /* 减小间距 */
-    flex-shrink: 0; /* 不许消失 */
+    margin: 0 12px;
+    flex-shrink: 0;
 }
 
-/* 4. 输入框 (布局核心) */
 #user-input {
-    flex: 1; /* 占据剩余所有空间 */
-    width: 0; /* 【关键】防止 Flex 子元素溢出 */
-    min-width: 0; /* 【关键】适配 Firefox/Mobile */
+    flex: 1;
+    width: 0;
+    min-width: 0;
     background: transparent;
     border: none;
     outline: none;
@@ -154,29 +146,27 @@ body { background-color: #000; overflow: hidden; font-family: "PingFang SC", "Mi
     padding: 0;
 }
 
-/* 5. 右侧按钮组容器 */
 .action-buttons {
     display: flex;
     align-items: center;
-    gap: 4px; 
-    flex-shrink: 0; /* 【关键】严禁被输入框挤压 */
+    gap: 4px;
+    flex-shrink: 0;
     margin-left: 8px;
 }
 
-/* 6. 发送键 */
 .btn-send-style {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 36px;  /* 适配手机调整大小 */
+    width: 36px;
     height: 36px;
     border-radius: 50%;
-    color: #ccc; 
+    color: #ccc;
     font-size: 20px;
     transition: all 0.2s;
     background: transparent;
     cursor: pointer;
-    border: none; /* 移除默认边框 */
+    border: none;
     flex-shrink: 0;
 }
 .btn-send-style:hover {
@@ -186,12 +176,11 @@ body { background-color: #000; overflow: hidden; font-family: "PingFang SC", "Mi
 }
 .btn-send-style:active { transform: scale(0.95); }
 
-/* 7. 生成键 */
 .btn-sparkle {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 36px; /* 适配手机调整大小 */
+    width: 36px;
     height: 36px;
     color: #aaa;
     font-size: 22px;
@@ -207,7 +196,9 @@ body { background-color: #000; overflow: hidden; font-family: "PingFang SC", "Mi
     animation: rotate-sparkle 3s linear infinite;
 }
 
-/* 功能坞和手账样式保持不变，确保完整性 */
+/* =========================================
+   功能坞 (Dock)
+   ========================================= */
 #dock-panel {
     position: absolute; inset: 0; z-index: 200;
     pointer-events: none; opacity: 0; transition: opacity 0.3s;
@@ -230,15 +221,11 @@ body { background-color: #000; overflow: hidden; font-family: "PingFang SC", "Mi
     box-shadow: 0 4px 10px rgba(0,0,0,0.3);
 }
 .app-name { font-size: 10px; color: #888; letter-spacing: 1px; }
-.app-window { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #050505; }
-.memo-list { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-col; gap: 12px; }
-.memo-card { background: #111; border: 1px solid #222; border-radius: 4px; padding: 12px; margin-bottom: 12px; }
-.memo-header { display: flex; justify-content: space-between; margin-bottom: 8px; border-bottom: 1px solid #222; padding-bottom: 6px; }
-.memo-topic { font-size: 10px; color: #D4AF37; display: flex; align-items: center; gap: 4px; text-transform: uppercase; }
-.memo-date { font-size: 9px; color: #444; }
-.memo-text { font-size: 13px; color: #ccc; line-height: 1.5; font-family: serif; }
 
-/* Toast */
+
+/* =========================================
+   通知 (Toast)
+   ========================================= */
 #toast-notification {
     position: absolute; top: 20px; left: 50%; transform: translateX(-50%) translateY(-20px);
     background: rgba(212, 175, 55, 0.9); color: #000; padding: 8px 16px; border-radius: 20px;
@@ -248,21 +235,14 @@ body { background-color: #000; overflow: hidden; font-family: "PingFang SC", "Mi
 #toast-notification.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
 /* =========================================
-   14. 沉浸式天气系统 (无雾版 + 双层架构)
+   天气与氛围特效
    ========================================= */
+.layer-fx-back { z-index: 1; mix-blend-mode: overlay; }
+.layer-fx-front { z-index: 5; }
+#bg-img { transition: filter 1.5s ease; }
 
-/* 层级定义 */
-.layer-fx-back { z-index: 1; mix-blend-mode: overlay; } /* 混合模式让色调更自然 */
-.layer-fx-front { z-index: 5; } /* 位于 UI(10) 和 角色(2) 之间 */
-
-/* 通用过渡 */
-#bg-img { transition: filter 1.5s ease; } /* 让背景图变色更柔和 */
-
-/* ==== 1. RAIN (雨) ==== */
-/* 激活时的背景滤镜 */
 .mode-rain #bg-img { filter: brightness(0.7) grayscale(0.4) contrast(1.1); }
-.mode-rain #fx-back { background: rgba(0, 20, 40, 0.4); } /* 后层冷色调 */
-
+.mode-rain #fx-back { background: rgba(0, 20, 40, 0.4); }
 .rain-drop {
     position: absolute; width: 1px; height: 120px;
     background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0.3));
@@ -270,10 +250,8 @@ body { background-color: #000; overflow: hidden; font-family: "PingFang SC", "Mi
 }
 @keyframes rain-fall { 0% { transform: translateY(0); } 100% { transform: translateY(120vh); } }
 
-/* ==== 2. SNOW (雪) ==== */
 .mode-snow #bg-img { filter: brightness(1.05) contrast(0.95); }
-.mode-snow #fx-back { background: rgba(220, 230, 255, 0.15); } /* 后层微冷白 */
-
+.mode-snow #fx-back { background: rgba(220, 230, 255, 0.15); }
 .snow-flake {
     position: absolute; border-radius: 50%; background: #fff;
     box-shadow: 0 0 4px rgba(255,255,255,0.8);
@@ -285,10 +263,8 @@ body { background-color: #000; overflow: hidden; font-family: "PingFang SC", "Mi
     100% { transform: translateY(110vh) translateX(30px); opacity: 0.1; }
 }
 
-/* ==== 3. SAKURA (樱花) ==== */
 .mode-sakura #bg-img { filter: contrast(1.05) saturate(1.1); }
-.mode-sakura #fx-back { background: rgba(255, 192, 203, 0.1); } /* 后层暖粉 */
-
+.mode-sakura #fx-back { background: rgba(255, 192, 203, 0.1); }
 .petal {
     position: absolute; background: #ffc0cb;
     border-radius: 10px 0px 10px 0px;
@@ -300,13 +276,10 @@ body { background-color: #000; overflow: hidden; font-family: "PingFang SC", "Mi
     100% { transform: translateY(110vh) rotate(360deg) translateX(60px); opacity: 0; }
 }
 
-/* ==== 4. FILM (老电影) ==== */
 .mode-film #bg-img { filter: sepia(0.8) contrast(1.2) grayscale(0.2); }
-.mode-film #fx-back { background: rgba(50, 40, 30, 0.2); } /* 后层复古黄 */
-
+.mode-film #fx-back { background: rgba(50, 40, 30, 0.2); }
 .noise-bg {
     position: absolute; inset: 0;
-    /* 使用 SVG 噪点，轻量且高清 */
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='1'/%3E%3C/svg%3E");
     opacity: 0.12; animation: noise-move 0.4s steps(5) infinite;
 }
@@ -318,74 +291,8 @@ body { background-color: #000; overflow: hidden; font-family: "PingFang SC", "Mi
 @keyframes scratch-move { 0% { left: 5%; opacity: 0; } 30% { opacity: 0.4; } 60% {opacity:0;} 100% { left: 90%; opacity: 0; } }
 
 /* =========================================
-   15. 日记系统样式 (Journal)
+   记忆核心 (Memory Core)
    ========================================= */
-#view-diary {
-    background-color: #050505; /* 确保背景纯黑 */
-}
-
-/* 字体强制使用衬线体，营造杂志感 */
-#noir-body, #noir-title, #noir-day, #noir-month {
-    font-family: "Noto Serif SC", serif;
-}
-
-/* 正文段落样式优化 */
-#noir-body p {
-    margin-bottom: 1.5em;
-    color: #b0b0b0;
-}
-
-/* 首段首字下沉 (可选，增加高级感) */
-#noir-body p:first-of-type::first-letter {
-    float: left;
-    font-size: 3.5em;
-    line-height: 0.8;
-    padding-right: 8px;
-    padding-left: 4px;
-    color: #D4AF37;
-    font-family: serif;
-}
-
-/* 简单的淡入动画 */
-@keyframes fade-in-up {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-.animate-fade-in {
-    animation: fade-in-up 1s ease-out forwards;
-}
-
-/* 移动端适配调整 */
-@media (max-width: 768px) {
-    #noir-bg-year {
-        right: -10px;
-        top: 60px; /* 避开手机顶部 */
-        opacity: 0.3;
-    }
-}
-
-/* 时间轴样式 */
-.timeline-item {
-    position: relative; padding-left: 20px; cursor: pointer; transition: all 0.3s;
-}
-.timeline-item::before {
-    content: ''; position: absolute; left: 0; top: 6px;
-    width: 6px; height: 6px; background: #333; border-radius: 50%; transition: all 0.3s;
-}
-.timeline-item:hover::before { background: #666; }
-.timeline-item.active::before { background: #D4AF37; box-shadow: 0 0 8px #D4AF37; transform: scale(1.5); }
-.timeline-item.active .timeline-date { color: #fff; }
-.timeline-date { color: #666; font-size: 14px; font-family: serif; }
-.timeline-title { color: #444; font-size: 10px; display: block; margin-top: 2px; }
-.timeline-has-diary { color: #D4AF37; position: absolute; right: 0; top: 4px; font-size: 10px; }
-
-/* 记忆节点样式 */
-.memory-node { position: relative; }
-.memory-node::before {
-    content: ''; position: absolute; left: -21px; top: 8px;
-    width: 8px; height: 8px; background: #111; border: 1px solid #555; border-radius: 50%;
-}
-/* Memory Core Timeline Styles */
 .mem-node {
     position: relative;
     padding-left: 24px;
@@ -393,11 +300,10 @@ body { background-color: #000; overflow: hidden; font-family: "PingFang SC", "Mi
     animation: fade-in-up 0.5s ease forwards;
 }
 
-/* 时间轴上的圆点 */
 .mem-node::before {
     content: '';
     position: absolute;
-    left: -4px; /* 线条宽度1px，居中偏移 */
+    left: -4px;
     top: 0;
     width: 7px;
     height: 7px;
@@ -407,7 +313,6 @@ body { background-color: #000; overflow: hidden; font-family: "PingFang SC", "Mi
     box-shadow: 0 0 5px rgba(212, 175, 55, 0.3);
 }
 
-/* 日期标签 */
 .mem-date {
     display: inline-block;
     background: rgba(212, 175, 55, 0.1);
@@ -420,7 +325,6 @@ body { background-color: #000; overflow: hidden; font-family: "PingFang SC", "Mi
     letter-spacing: 1px;
 }
 
-/* 记忆文本 */
 .mem-text {
     font-size: 13px;
     color: #ccc;
@@ -429,140 +333,21 @@ body { background-color: #000; overflow: hidden; font-family: "PingFang SC", "Mi
     text-align: justify;
 }
 
-/* 最后一个节点的线变成渐隐 */
 .mem-node:last-child {
     border-left-color: transparent;
     border-image: linear-gradient(to bottom, rgba(255,255,255,0.1), transparent) 1 100%;
 }
 
-/* 统计信息 */
 #mem-usage-display { font-family: monospace; }
-
-/* --- START OF ADDED CSS (修复记忆界面不显示的问题) --- */
-
-/* 视图激活状态：显示、层级最高 */
-.view-active {
-    opacity: 1 !important;
-    transform: translateY(0) !important;
-    z-index: 20 !important;
-}
-.modal-open .view-active {
-    pointer-events: auto !important;
-    visibility: visible !important;
-}
-/* 视图隐藏状态：透明、下沉、不可点击 */
-.view-hidden {
-    opacity: 0 !important;
-    transform: translateY(10px) !important;
-    pointer-events: none !important;
-    visibility: hidden !important;
-    z-index: 0 !important;
-}
-
-/* 确保记忆界面的内容区域能正常滚动 */
+.active-section { display: block !important; }
+.hidden-section { display: none !important; }
 #memory-timeline-view {
-    padding-bottom: 80px; /* 防止底部被遮挡 */
+    padding-bottom: 80px;
 }
 
-/*全新备忘录模块样式 (替换旧版)*/
-/* ---整体布局 --- */
-#app-memo { background-color: #0a0a0a; }
-
-.memo-app-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 16px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    background: #111;
-    flex-shrink: 0;
-}
-.memo-app-title {
-    color: #D4AF37;
-    font-size: 12px;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    margin: 0;
-}
-.memo-back-btn {
-    color: #888; background: none; border: none; font-size: 18px; cursor: pointer;
-}
-.memo-add-btn {
-    background: #D4AF37; color: #000; border: none; border-radius: 50%;
-    width: 24px; height: 24px; font-size: 18px;
-    display: flex; align-items: center; justify-content: center; cursor: pointer;
-    transition: transform 0.2s ease;
-}
-.memo-add-btn:hover { transform: scale(1.1); }
-
-
-/* --- 搜索与筛选 --- */
-.memo-controls {
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    border-bottom: 1px solid #222;
-    flex-shrink: 0;
-}
-.search-bar { position: relative; }
-.search-bar i {
-    position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
-    color: #555; font-size: 16px; pointer-events: none;
-}
-.search-input {
-    width: 100%; background: #111; border: 1px solid #333;
-    border-radius: 20px; padding: 10px 18px 10px 40px; color: #eee;
-    font-size: 13px; box-sizing: border-box; transition: border-color 0.2s;
-}
-.search-input:focus { outline: none; border-color: #D4AF37; }
-.filter-chips {
-    display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px;
-}
-.filter-chips::-webkit-scrollbar { display: none; }
-
-
-/* --- 备忘录卡片列表 --- */
-.memo-list {
-    flex: 1;
-    overflow-y: auto;
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-.memo-card {
-    background: #111; border: 1px solid #222; border-radius: 8px;
-    padding: 16px; transition: all 0.3s ease; position: relative;
-    animation: memo-fade-in 0.4s ease forwards;
-}
-@keyframes memo-fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); }}
-
-.memo-card:hover { border-color: #D4AF37; }
-.memo-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-.memo-card-icon { color: #D4AF37; font-size: 20px; }
-.memo-card-topic { color: #eee; font-size: 14px; font-weight: 600; flex-grow: 1; text-transform: uppercase; letter-spacing: 1px; }
-.memo-card-date { color: #666; font-size: 10px; }
-.memo-card-content {
-    color: #bbb; font-size: 14px; line-height: 1.7; font-family: 'Noto Serif SC', serif;
-    padding-left: 12px; border-left: 2px solid #222;
-}
-.memo-card-actions {
-    position: absolute; top: 12px; right: 12px;
-    display: flex; gap: 8px; opacity: 0; transition: opacity 0.2s ease;
-}
-.memo-card:hover .memo-card-actions { opacity: 1; }
-.memo-action-btn {
-    background: rgba(255, 255, 255, 0.05); border: 1px solid #333; border-radius: 50%;
-    width: 28px; height: 28px; color: #888; cursor: pointer;
-    display: flex; align-items: center; justify-content: center; font-size: 14px;
-}
-.memo-action-btn:hover { background: #D4AF37; color: #000; }
-.memo-action-btn.delete:hover { background: #e53e3e; color: #fff; }
-.memo-empty-state { text-align: center; color: #555; font-size: 12px; margin-top: 40px; }
-
-
-/* --- 新增/编辑弹窗 (Modal) --- */
+/* =========================================
+   备忘录 (Memo) 弹窗
+   ========================================= */
 .memo-modal-overlay {
     position: fixed; inset: 0; z-index: 500;
     background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(8px);
@@ -588,7 +373,6 @@ body { background-color: #000; overflow: hidden; font-family: "PingFang SC", "Mi
 }
 .close-modal-btn:hover { color: #fff; }
 
-/* --- 弹窗内的表单 --- */
 form { padding: 24px; }
 .form-group { margin-bottom: 20px; }
 .form-group label {
@@ -603,7 +387,6 @@ form { padding: 24px; }
 .form-select:focus, .form-textarea:focus { outline: none; border-color: #D4AF37; }
 .form-textarea { min-height: 120px; resize: vertical; font-family: 'Noto Serif SC', serif; }
 
-/* --- 弹窗内的按钮 --- */
 .form-actions { display: flex; gap: 12px; margin-top: 24px; }
 .action-btn {
     flex-grow: 1; padding: 12px; border-radius: 4px; border: none;
@@ -613,7 +396,9 @@ form { padding: 24px; }
 .btn-primary { background: #D4AF37; color: #000; }
 .btn-secondary { background: #333; color: #aaa; }
 
-/* --- 日历弹窗样式 --- */
+/* =========================================
+   日历 (Calendar) 弹窗
+   ========================================= */
 #calendar-modal { transition: opacity 0.2s ease, visibility 0.2s ease; }
 .calendar-container {
     background: #1a1a1a;
@@ -677,7 +462,10 @@ form { padding: 24px; }
 .day-cell:hover { background-color: #333; }
 .day-cell.today .day-number { font-weight: bold; color: #D4AF37; }
 .day-cell.selected { border-color: #D4AF37; background-color: rgba(212, 175, 55, 0.1); }
-.day-number { font-size: 13px; }
+.day-number {
+    font-size: 13px;
+    color: #bbb; /* 提高默认日期数字亮度，确保可读性 */
+}
 
 .day-indicators {
     display: flex;
@@ -689,7 +477,7 @@ form { padding: 24px; }
 }
 .dot { width: 4px; height: 4px; border-radius: 50%; }
 .dot-diary { background-color: #D4AF37; }
-.dot-memory { background-color: #87CEEB; /* SkyBlue */ }
+.dot-memory { background-color: #87CEEB; }
 
 .calendar-legend {
     display: flex;
@@ -701,63 +489,16 @@ form { padding: 24px; }
 }
 .legend-item { display: flex; align-items: center; gap: 6px; font-size: 10px; color: #777; }
 .legend-dot { width: 6px; height: 6px; border-radius: 50%; }
+
 /* =========================================
-   日记刷新与评论功能样式 (原型A)
+   日记 (Journal) 评论区
    ========================================= */
-
-/* --- 1. 日记末尾的操作区 --- */
-.diary-actions-footer {
-    margin-top: 48px;
-    padding-top: 24px;
-    border-top: 1px solid #222;
-    display: flex;
-    justify-content: flex-end; /* 按钮靠右 */
-    min-height: 40px; /* 避免布局跳动 */
-}
-.refresh-button {
-    background: none;
-    border: 1px solid #444;
-    color: #888;
-    padding: 8px 16px;
-    font-size: 12px;
-    font-family: sans-serif;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    cursor: pointer;
-    transition: all 0.3s;
-    border-radius: 4px;
-}
-.refresh-button:hover {
-    border-color: #D4AF37;
-    color: #D4AF37;
-    background-color: rgba(212, 175, 55, 0.05);
-}
-.refresh-button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-.refresh-button i {
-    font-size: 16px;
-}
-.refresh-button.loading i {
-    animation: rotate-sparkle 1.5s linear infinite;
-}
-
-/* --- 2. 评论区 --- */
 .comment-section {
     margin-top: 48px;
     padding-top: 32px;
     border-top: 1px dashed #333;
 }
-.comment-section-title {
-    font-size: 16px;
-    color: #D4AF37;
-    font-style: italic;
-    margin-bottom: 24px;
-}
 
-/* --- 评论对话线程 --- */
 .comment-thread {
     margin-bottom: 32px;
     display: flex;
@@ -766,44 +507,40 @@ form { padding: 24px; }
 }
 
 .comment-bubble {
-    padding: 14px 18px; /* 加大一点内边距 */
+    padding: 14px 18px;
     border-radius: 12px;
     max-width: 85%;
     font-size: 14px;
     line-height: 1.6;
     font-family: "Noto Serif SC", serif;
     animation: memo-fade-in 0.5s ease;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3); /* 加一点阴影增加层次感 */
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
 
-/* 用户的评论：深灰背景 + 纯白文字 */
 .user-comment {
-    background-color: #333333; /* 提亮背景色 */
-    color: #ffffff;            /* 纯白文字，确保看清 */
+    background-color: #333333;
+    color: #ffffff;
     align-self: flex-end;
     border-bottom-right-radius: 2px;
     border: 1px solid #444;
 }
 
-/* 他的回复：黑底 + 金色边框 + 亮灰文字 */
 .character-reply {
     background-color: rgba(0, 0, 0, 0.6);
-    border: 1px solid #D4AF37; /* 金色边框 */
-    color: #e0e0e0;            /* 亮灰色文字，比原来更亮 */
+    border: 1px solid #D4AF37;
+    color: #e0e0e0;
     align-self: flex-start;
     border-top-left-radius: 2px;
 }
 
-/* 回复上方的名字 */
 .reply-author {
     font-size: 12px;
-    color: #D4AF37; /* 名字用金色 */
+    color: #D4AF37;
     margin-bottom: 6px;
     font-weight: bold;
     letter-spacing: 1px;
 }
 
-/* 正在输入的提示 */
 .reply-loading {
     color: #aaa;
     font-style: italic;
@@ -813,7 +550,6 @@ form { padding: 24px; }
     animation: pulse 1.5s infinite;
 }
 
-/* --- 评论输入表单 --- */
 #comment-form textarea {
     width: 100%;
     box-sizing: border-box;
@@ -846,59 +582,27 @@ form { padding: 24px; }
     cursor: pointer;
     transition: opacity 0.2s;
 }
-.comment-submit-btn:hover {
-    opacity: 0.9;
-}
-.comment-submit-btn:disabled {
-    background: #555;
-    cursor: not-allowed;
-}
+.comment-submit-btn:hover { opacity: 0.9; }
+.comment-submit-btn:disabled { background: #555; cursor: not-allowed; }
 
 /* =========================================
-   日记界面 
+   新版日记 (New Journal) 样式
    ========================================= */
-.journal-header-switcher {
-    font-family: sans-serif; 
-}
-
-.journal-header-switcher button {
-    color: #666; /* 默认颜色 */
-    border-bottom: 2px solid transparent;
-    padding-bottom: 4px;
-    transition: all 0.3s ease;
-    letter-spacing: 1px;
-}
-
-.journal-header-switcher button:hover {
-    color: #fff;
-}
-
-.journal-header-switcher button.active {
-    color: #D4AF37; 
-    border-color: #D4AF37; 
-    font-weight: 600;
-}
-/* ================= NEW JOURNAL STYLE (START) ================= */
-
-/* 1. 基础容器与动画 */
 .journal-window { background-color: #050505; }
 
 @keyframes breathe-text {
     0%, 100% { color: #D4AF37; text-shadow: 0 0 5px rgba(212, 175, 55, 0.1); }
     50% { color: #fff; text-shadow: 0 0 15px rgba(212, 175, 55, 0.6), 0 0 30px rgba(212, 175, 55, 0.1); }
 }
-
 @keyframes breathe-border {
     0%, 100% { border-color: rgba(212, 175, 55, 0.3); box-shadow: 0 0 10px rgba(212,175,55,0.05); }
     50% { border-color: rgba(212, 175, 55, 0.8); box-shadow: 0 0 25px rgba(212,175,55,0.2); }
 }
-
 @keyframes float-up {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
 }
 
-/* 2. 头部设计 (Header) */
 .journal-new-header {
     position: absolute; top: 0; left: 0; right: 0;
     padding: 30px 24px 10px;
@@ -910,20 +614,16 @@ form { padding: 24px; }
 }
 
 .header-top { display: flex; justify-content: space-between; align-items: flex-start; }
-
 .date-trigger { display: flex; align-items: baseline; gap: 10px; cursor: pointer; transition: transform 0.2s; }
 .date-trigger:active { transform: scale(0.98); }
-
 .date-day {
     font-family: 'Cinzel', serif; font-size: 56px; line-height: 0.8; font-weight: 400;
     animation: breathe-text 6s ease-in-out infinite; color: #D4AF37;
 }
-
 .date-meta { display: flex; flex-direction: column; }
 .date-month { font-size: 14px; text-transform: uppercase; letter-spacing: 3px; color: #D4AF37; font-weight: 700; font-family: 'Noto Serif SC', serif; }
 .date-year { font-size: 10px; color: #666; letter-spacing: 1px; margin-top: 2px; }
 
-/* 3. 关闭按钮 */
 .close-btn {
     width: 36px; height: 36px; border-radius: 50%;
     border: 1px solid rgba(255,255,255,0.1); background: transparent;
@@ -932,16 +632,13 @@ form { padding: 24px; }
 }
 .close-btn:hover { border-color: #D4AF37; color: #fff; transform: rotate(90deg); }
 
-/* 4. 视图切换器 */
 .view-switcher { display: flex; gap: 30px; padding-left: 4px; position: relative; }
-
 .switch-item {
     background: none; border: none; position: relative;
     font-size: 11px; text-transform: uppercase; letter-spacing: 2px;
     color: #666; padding-bottom: 8px; cursor: pointer; transition: color 0.3s;
 }
 .switch-item:hover { color: #fff; }
-
 .switch-item.active { color: #D4AF37; font-weight: bold; }
 .switch-item.active::after {
     content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
@@ -949,7 +646,6 @@ form { padding: 24px; }
     box-shadow: 0 0 10px #D4AF37; animation: breathe-text 3s infinite;
 }
 
-/* 5. 滚动内容区 */
 .journal-scroll-area {
     padding-top: 160px; padding-left: 28px; padding-right: 28px; padding-bottom: 80px;
     height: 100%; overflow-y: auto; position: relative;
@@ -962,12 +658,8 @@ form { padding: 24px; }
     z-index: 0; pointer-events: none;
 }
 
-/* 视图切换逻辑 */
 .view-section { display: none; animation: float-up 0.4s ease-out; position: relative; z-index: 10; }
-.active-section { display: block !important; }
-.hidden-section { display: none !important; }
 
-/* 6. 内容样式 */
 .diary-title { font-size: 18px; color: #fff; margin-bottom: 20px; font-style: italic; font-family: "Noto Serif SC", serif; }
 .diary-text { font-size: 14px; line-height: 2.0; color: #aaa; text-align: justify; margin-bottom: 30px; font-family: "Noto Serif SC", serif; }
 .diary-text p { margin-bottom: 1.2em; }
@@ -991,136 +683,107 @@ form { padding: 24px; }
 }
 .comment-input:focus { outline: none; border-color: #D4AF37; }
 
-.mem-node { padding-left: 16px; border-left: 1px solid rgba(255,255,255,0.1); margin-bottom: 16px; position: relative; }
-.mem-node::before { content: ''; position: absolute; left: -3px; top: 0; width: 5px; height: 5px; background: #000; border: 1px solid #D4AF37; border-radius: 50%; }
-.mem-date { font-size: 9px; color: #D4AF37; margin-bottom: 4px; display: block; opacity: 0.8; }
-.mem-text { font-size: 12px; color: #bbb; line-height: 1.6; }
-
-
-/* ================= META ROW STYLES (Weather & Mood) ================= */
-
-/* 元数据行容器 */
 .journal-meta-row {
     display: flex;
     align-items: center;
     gap: 16px;
-    margin-bottom: 30px; /* 与正文拉开距离 */
+    margin-bottom: 30px;
     animation: float-up 0.5s ease-out;
 }
 
-/* 通用胶囊样式 */
 .meta-chip {
     display: flex;
     align-items: center;
     gap: 6px;
     font-size: 10px;
-    font-family: sans-serif; /* 用无衬线体显得更现代数据化 */
+    font-family: sans-serif;
     text-transform: uppercase;
     letter-spacing: 1.5px;
     padding: 6px 14px;
-    border-radius: 100px; /* 圆角胶囊 */
+    border-radius: 100px;
     border: 1px solid rgba(255, 255, 255, 0.1);
     background: rgba(255, 255, 255, 0.02);
     transition: all 0.3s;
 }
 
-/* 天气胶囊特异性 */
-.weather-chip {
-    color: #bbb;
-}
+.weather-chip { color: #bbb; }
 .weather-chip i { font-size: 14px; }
-
-/* 心情胶囊特异性 */
 .mood-chip {
-    color: #D4AF37; /* 金色 */
+    color: #D4AF37;
     border-color: rgba(212, 175, 55, 0.2);
     background: rgba(212, 175, 55, 0.05);
 }
-
-/* 悬停微互动 */
 .meta-chip:hover {
     border-color: #666;
     background: rgba(255, 255, 255, 0.05);
 }
-.mood-chip:hover {
-    border-color: #D4AF37;
-}
-
-/* 巨大的背景图标淡入动画 */
+.mood-chip:hover { border-color: #D4AF37; }
 #noir-bg-icon {
     transition: all 1s ease;
     filter: blur(2px);
 }
-/* =========================================
-   Option A: 星轨呼吸链 (Memory Timeline)
-   ========================================= */
 
-/* 1. 呼吸动画定义 */
+/* =========================================
+   记忆时间轴 (Memory Timeline)
+   ========================================= */
 @keyframes breathe-glow {
-    0%, 100% { 
-        box-shadow: 0 0 0 rgba(212, 175, 55, 0); 
+    0%, 100% {
+        box-shadow: 0 0 0 rgba(212, 175, 55, 0);
         border-color: rgba(212, 175, 55, 0.4);
         background: #000;
-    } 
-    50% { 
-        box-shadow: 0 0 12px rgba(212, 175, 55, 0.8); 
-        border-color: #D4AF37; 
+    }
+    50% {
+        box-shadow: 0 0 12px rgba(212, 175, 55, 0.8);
+        border-color: #D4AF37;
         background: rgba(212, 175, 55, 0.1);
     }
 }
-
-/* 2. 容器与轴线 */
 #memory-timeline-view {
-    padding: 20px 0 40px 20px; /* 左边留出空间给轴线 */
+    padding: 20px 0 40px 20px;
     position: relative;
     margin-left: 10px;
-    border-left: 1px solid rgba(255, 255, 255, 0.1); /* 这就是那条长长的轴线 */
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-/* 3. 单个记忆节点包装器 */
-.mem-node-wrapper { 
-    display: flex; 
-    margin-bottom: 30px; 
-    position: relative; 
+.mem-node-wrapper {
+    display: flex;
+    margin-bottom: 30px;
+    position: relative;
     align-items: flex-start;
     animation: fade-in-up 0.5s ease forwards;
 }
 
-/* 4. 左侧时间戳 (08:30) */
-.mem-time-col { 
-    width: 45px; 
-    text-align: right; 
-    padding-right: 15px; 
-    font-family: 'JetBrains Mono', monospace; 
-    font-size: 11px; 
-    color: #666; 
-    margin-top: 4px; /* 对齐圆点 */
+.mem-time-col {
+    width: 45px;
+    text-align: right;
+    padding-right: 15px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: #666;
+    margin-top: 4px;
     flex-shrink: 0;
 }
 
-/* 5. 呼吸的光点 (锚点) */
-.mem-dot-anchor { 
-    position: absolute; 
-    left: -25px; /* 正好定位在轴线上 (20px padding + 5px radius) */
-    top: 6px; 
-    width: 9px; 
-    height: 9px; 
-    background: #000; 
-    border: 1px solid #D4AF37; 
-    border-radius: 50%; 
+.mem-dot-anchor {
+    position: absolute;
+    left: -25px;
+    top: 6px;
+    width: 9px;
+    height: 9px;
+    background: #000;
+    border: 1px solid #D4AF37;
+    border-radius: 50%;
     z-index: 2;
-    /* 核心动画 */
     animation: breathe-glow 3s infinite ease-in-out;
 }
 
-/* 6. 右侧内容卡片 */
-.mem-card { 
-    flex: 1; 
-    background: rgba(255, 255, 255, 0.03); 
-    border: 1px solid #333; 
-    padding: 12px 16px; 
-    border-radius: 6px; 
-    position: relative; 
+.mem-card {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid #333;
+    padding: 12px 16px;
+    border-radius: 6px;
+    position: relative;
     transition: all 0.3s;
 }
 .mem-card:hover {
@@ -1128,38 +791,34 @@ form { padding: 24px; }
     border-color: #555;
 }
 
-/* 卡片左边的金色装饰线 */
-.mem-card::before { 
-    content: ''; 
-    position: absolute; 
-    left: 0; 
-    top: 10px; 
-    bottom: 10px; 
-    width: 2px; 
-    background: linear-gradient(to bottom, #D4AF37, transparent); 
-    opacity: 0.6; 
+.mem-card::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 10px;
+    bottom: 10px;
+    width: 2px;
+    background: linear-gradient(to bottom, #D4AF37, transparent);
+    opacity: 0.6;
 }
 
-/* 内容文字 */
 .mem-text-content {
-    font-size: 13px; 
-    color: #ccc; 
-    line-height: 1.6; 
+    font-size: 13px;
+    color: #ccc;
+    line-height: 1.6;
     font-family: "Noto Serif SC", serif;
 }
 
-/* =========================================
-   历史记录交互 (Option 1 & 3)
-   ========================================= */
 
-/* 1. 列表项的基础动画 */
+/* =========================================
+   历史记录 (History) 交互
+   ========================================= */
 .log-item {
     position: relative;
     transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-    border-left: 2px solid transparent; /* 预留边框位置 */
+    border-left: 2px solid transparent;
 }
 
-/* 2. 激活状态 (Option 1: Inline HUD) */
 .log-item.active-item {
     background: rgba(255, 255, 255, 0.03);
     border-left-color: #D4AF37;
@@ -1170,7 +829,6 @@ form { padding: 24px; }
     border-radius: 0 8px 8px 0;
 }
 
-/* 嵌入式工具栏 */
 .hud-toolbar {
     display: flex;
     gap: 8px;
@@ -1199,9 +857,6 @@ form { padding: 24px; }
 .hud-btn:hover { background: #D4AF37; color: #000; border-color: #D4AF37; }
 .hud-btn.delete-btn:hover { background: #5a0000; color: #ffcccc; border-color: #ff4444; }
 
-/* 3. 多选模式 (Option 3: Batch Mode) */
-
-/* 顶部黄条 */
 #batch-bar {
     position: absolute; top: 0; left: 0; right: 0; height: 50px;
     background: #D4AF37; z-index: 50;
@@ -1211,25 +866,22 @@ form { padding: 24px; }
 }
 #batch-bar.show { transform: translateY(0); }
 
-/* 列表项在多选模式下的偏移 */
 .log-item.batch-mode-layout {
-    padding-left: 40px !important; /* 给复选框腾位置 */
-    pointer-events: none; /* 禁止点开HUD，只允许点复选框 */
+    padding-left: 40px !important;
+    pointer-events: none;
 }
 
-/* 复选框容器 */
 .checkbox-overlay {
     position: absolute; left: 0; top: 0; bottom: 0; width: 40px;
     display: flex; align-items: flex-start; justify-content: center;
-    padding-top: 4px; /* 对齐Role */
+    padding-top: 4px;
     cursor: pointer;
-    pointer-events: auto; /* 恢复复选框点击 */
+    pointer-events: auto;
     z-index: 10;
 }
 
-/* 自定义复选框样式 */
 .custom-checkbox {
-    width: 16px; height: 16px; 
+    width: 16px; height: 16px;
     border: 1px solid #666; border-radius: 4px;
     display: flex; align-items: center; justify-content: center;
     background: #000; transition: all 0.2s;
@@ -1238,7 +890,6 @@ form { padding: 24px; }
 .custom-checkbox i { font-size: 10px; display: none; }
 .custom-checkbox.checked i { display: block; }
 
-/* 底部浮动删除按钮 */
 #batch-delete-fab {
     position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px);
     background: #8B0000; color: white; padding: 12px 24px; border-radius: 30px;
@@ -1250,14 +901,16 @@ form { padding: 24px; }
 #batch-delete-fab.show { transform: translateX(-50%) translateY(0); opacity: 1; }
 #batch-delete-fab:hover { background: #a00000; transform: translateX(-50%) scale(1.05); }
 
-/* 编辑框样式 */
 .inline-editor {
     width: 100%; background: #111; border: 1px solid #444; color: #eee;
     padding: 8px; font-size: 14px; font-family: inherit; resize: vertical; outline: none;
     min-height: 60px; margin-bottom: 8px;
 }
 .inline-editor:focus { border-color: #D4AF37; }
-/* ==== 状态监视器样式 ==== */
+
+/* =========================================
+   状态监视器 (Status Panel)
+   ========================================= */
 .status-tab.active {
     color: #D4AF37;
     position: relative;
@@ -1265,25 +918,19 @@ form { padding: 24px; }
 .status-tab.active::after {
     content: '';
     position: absolute;
-    bottom: -9px; /* 对齐到底部边框 */
+    bottom: -9px;
     left: 0; right: 0;
     height: 2px;
     background: #D4AF37;
     box-shadow: 0 0 8px #D4AF37;
 }
 
-/* 面板展开动画类 */
 .panel-open {
     opacity: 1 !important;
     pointer-events: auto !important;
     transform: scale(1) !important;
 }
 
-/* =========================================
-   CORE (灵魂链接) 界面样式
-   ========================================= */
-
-/* 1. 灵魂球容器 */
 .soul-orb {
     width: 80px; height: 80px;
     margin: 10px auto 16px;
@@ -1296,7 +943,6 @@ form { padding: 24px; }
     background: radial-gradient(circle at 30% 30%, rgba(212, 175, 55, 0.1), transparent 60%);
 }
 
-/* 呼吸光环动画 */
 .soul-orb::before {
     content: ''; position: absolute; inset: -3px;
     border-radius: 50%;
@@ -1305,16 +951,14 @@ form { padding: 24px; }
 }
 @keyframes rotate-orb { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-/* 情感光晕背景 */
 .mood-glow {
     position: absolute; inset: 0; rounded-full;
     filter: blur(15px); opacity: 0.3;
-    background: #D4AF37; /* 默认金色，JS可改 */
+    background: #D4AF37;
     transition: background-color 1s ease;
     z-index: -1;
 }
 
-/* 2. 思维流 (文字滚动) */
 .thought-stream {
     height: 50px;
     overflow: hidden;
@@ -1327,8 +971,8 @@ form { padding: 24px; }
     font-size: 10px; color: #aaa; margin-bottom: 4px;
     opacity: 0; animation: fade-slide-up 4s infinite;
     font-family: "Noto Serif SC", serif; font-style: italic;
-    white-space: normal; 
-    line-height: 1.5;    
+    white-space: normal;
+    line-height: 1.5;
 }
 @keyframes fade-slide-up {
     0% { opacity: 0; transform: translateY(10px); }
@@ -1337,7 +981,6 @@ form { padding: 24px; }
     100% { opacity: 0; transform: translateY(-10px); }
 }
 
-/* 3. 生理指标卡片 (点阵风格) */
 .vital-card {
     background: rgba(255,255,255,0.03);
     padding: 6px 10px; margin-bottom: 6px;
@@ -1355,36 +998,28 @@ form { padding: 24px; }
 .v-dot.active { background: #D4AF37; box-shadow: 0 0 4px rgba(212, 175, 55, 0.5); }
 .v-dot.warning { background: #ef4444; box-shadow: 0 0 4px rgba(239, 68, 68, 0.5); }
 
-/* 新增的 3D 视差角色容器样式 */
+/* =========================================
+   3D 视差与视觉配置 (Parallax & Visual Rig)
+   ========================================= */
 #parallax-char-container {
     width: 100%;
     height: 100%;
 }
 
-/* style.css */
-
-/* 视觉配置锚点标记 */
 .rig-anchor-marker {
     position: absolute;
     width: 10px; height: 10px;
-    transform: translate(-50%, -50%); /* 居中定位 */
+    transform: translate(-50%, -50%);
     pointer-events: none;
     display: flex; align-items: center; justify-content: center;
 }
-
-/* 脸部锚点 (星星) */
 .rig-anchor-marker.face { color: #D4AF37; font-size: 14px; text-shadow: 0 0 5px rgba(0,0,0,0.8); }
 .rig-anchor-marker.face::after { content: '★'; }
-
-/* 普通锚点 (圆点) */
-.rig-anchor-marker.point { }
-.rig-anchor-marker.point::after { 
-    content: ''; width: 6px; height: 6px; 
-    background: rgba(255, 255, 255, 0.8); 
-    border: 1px solid #000; border-radius: 50%; 
+.rig-anchor-marker.point::after {
+    content: ''; width: 6px; height: 6px;
+    background: rgba(255, 255, 255, 0.8);
+    border: 1px solid #000; border-radius: 50%;
 }
-
-/* 锚点名称标签 */
 .rig-anchor-label {
     position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
     background: rgba(0,0,0,0.7); color: #fff;
@@ -1393,14 +1028,12 @@ form { padding: 24px; }
 }
 
 /* =========================================
-   方案 A: 记忆节点交互样式 (Memory Interaction)
+   记忆节点交互 (Memory Interaction)
    ========================================= */
-
-/* 1. 悬浮光感菜单 (默认隐藏) */
 .mem-floating-menu {
     position: absolute;
     right: -10px;
-    top: -45px; /* 悬浮在卡片上方 */
+    top: -45px;
     height: 40px;
     background: rgba(20, 20, 20, 0.9);
     backdrop-filter: blur(12px);
@@ -1411,22 +1044,18 @@ form { padding: 24px; }
     align-items: center;
     padding: 0 6px;
     z-index: 50;
-    
-    /* 动画状态 */
     opacity: 0;
     transform: scale(0.9) translateY(10px);
     pointer-events: none;
     transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-/* 激活状态：浮现 */
 .mem-node-wrapper.menu-active .mem-floating-menu {
     opacity: 1;
     transform: scale(1) translateY(0);
     pointer-events: auto;
 }
 
-/* 菜单内的按钮 */
 .mem-menu-btn {
     width: 32px;
     height: 32px;
@@ -1445,10 +1074,8 @@ form { padding: 24px; }
 .mem-menu-btn.text-gold:hover { color: #D4AF37; }
 .mem-menu-btn.text-red:hover { color: #ff4444; background: rgba(255,0,0,0.1); }
 
-/* 分割线 */
 .mem-menu-divider { width: 1px; height: 16px; background: rgba(255,255,255,0.15); margin: 0 2px; }
 
-/* 2. 多选复选框 (左侧滑入) */
 .mem-checkbox-container {
     position: absolute;
     left: -40px;
@@ -1459,26 +1086,22 @@ form { padding: 24px; }
     pointer-events: none;
 }
 
-/* 批量模式下：复选框显示，内容右移 */
 .batch-mode-active .mem-checkbox-container {
     opacity: 1;
     transform: translateY(-50%) translateX(0);
     pointer-events: auto;
-    left: -10px; /* 调整位置 */
+    left: -10px;
 }
 
-/* 批量模式下：整体 wrapper 偏移，给复选框腾地儿 */
-.batch-mode-active .mem-time-col, 
-.batch-mode-active .mem-dot-anchor, 
+.batch-mode-active .mem-time-col,
+.batch-mode-active .mem-dot-anchor,
 .batch-mode-active .mem-card {
-    transform: translateX(30px); /* 整体右移 */
+    transform: translateX(30px);
     transition: transform 0.3s ease;
 }
-/* 批量模式下：禁用卡片 hover 和点击，只允许点复选框 */
 .batch-mode-active .mem-card { pointer-events: none; }
 .batch-mode-active .mem-node-wrapper { cursor: default; }
 
-/* 复选框视觉 */
 .mem-custom-checkbox {
     width: 20px; height: 20px;
     background: #000;
@@ -1494,13 +1117,11 @@ form { padding: 24px; }
     border-color: #D4AF37;
     color: #000;
 }
-/* 选中后的卡片高亮 */
 .mem-node-wrapper.selected .mem-card {
     border-color: #D4AF37;
     background: rgba(212, 175, 55, 0.05);
 }
 
-/* 3. 顶部批量操作栏 (Batch Bar) */
 #mem-batch-bar {
     position: absolute; top: 0; left: 0; right: 0;
     height: 70px;
@@ -1544,11 +1165,10 @@ form { padding: 24px; }
 .batch-exit-btn:hover { background: #000; color: #D4AF37; }
 
 /* =========================================
-   18. 智能日程表样式 (Precision Schedule)
+   智能日程表 (Schedule)
    ========================================= */
 #calendar-window-modal { z-index: 90; }
 
-/* 顶部日期栏 */
 .cal-header-bg {
     background: linear-gradient(to bottom, rgba(5,5,5,0.98), rgba(5,5,5,0.8));
     border-bottom: 1px solid rgba(255,255,255,0.05);
@@ -1567,13 +1187,10 @@ form { padding: 24px; }
 .cal-day-name { font-size: 9px; text-transform: uppercase; }
 .cal-day-num { font-size: 16px; font-weight: bold; font-family: sans-serif; }
 
-/* 垂直时间轴容器 */
 .cal-timeline { flex: 1; overflow-y: auto; padding: 20px 20px 80px; position: relative; }
 
-/* 时间块组件 */
 .event-block { display: flex; gap: 14px; margin-bottom: 0; position: relative; min-height: 70px; }
 
-/* 左侧时间列 */
 .time-col {
     display: flex; flex-direction: column; justify-content: space-between;
     width: 42px; flex-shrink: 0; padding: 4px 0;
@@ -1581,48 +1198,42 @@ form { padding: 24px; }
 .t-start { color: #fff; font-weight: 700; font-family: monospace; font-size: 11px; text-align: right; }
 .t-end { color: #555; font-size: 10px; font-family: monospace; text-align: right; }
 
-/* 中间轴线 */
 .track-col { width: 10px; display: flex; flex-direction: column; align-items: center; position: relative; }
 .track-dot { width: 8px; height: 8px; border-radius: 50%; background: #000; border: 1px solid #444; z-index: 2; margin-top: 5px; }
 .track-line { flex: 1; width: 2px; background: #333; margin: -2px 0; z-index: 1; }
 
-/* 右侧卡片 */
 .event-card {
-    flex: 1; 
-    background: rgba(30, 30, 30, 0.9); /* 背景调亮，不透明度增加 */
+    flex: 1;
+    background: rgba(30, 30, 30, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 10px; 
-    padding: 12px 14px; 
-    margin-bottom: 16px; 
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 16px;
     position: relative;
-    transition: all 0.2s; 
+    transition: all 0.2s;
     cursor: pointer;
-    color: #ffffff; /* 【关键】强制文字白色 */
+    color: #ffffff;
 }
 .event-card:hover { border-color: #888; background: rgba(255,255,255,0.15); }
 
-/* 卡片内部新层级 */
 .evt-activity { font-size: 13px; font-weight: bold; color: #fff; margin-bottom: 4px; display: block; }
 .evt-desc { font-size: 10px; color: #ccc; display: block; line-height: 1.4; }
 .evt-type-tag { font-size: 9px; font-family: monospace; color: #888; margin-bottom: 4px; display: flex; align-items: center; gap: 4px; text-transform: uppercase;}
 
-/* 时长胶囊 */
 .dur-pill {
     position: absolute; top: 10px; right: 10px;
     font-size: 9px; font-family: monospace; color: #aaa;
     background: rgba(0,0,0,0.5); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1);
 }
 
-/* 状态变体 - Locked */
 .state-locked .track-dot { background: #222; border-color: #666; }
 .state-locked .track-line { background: #333; }
 .state-locked .event-card { border-left: 2px solid #555; }
 
-/* 状态变体 - Date (约会) */
 .state-date .track-dot { background: #D4AF37; border-color: #D4AF37; box-shadow: 0 0 8px #D4AF37; }
 .state-date .track-line { background: linear-gradient(to bottom, #D4AF37, rgba(212,175,55,0.1)); }
-.state-date .event-card { 
-    background: linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(0,0,0,0.9)); /* 金色背景加强 */
+.state-date .event-card {
+    background: linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(0,0,0,0.9));
     border-color: rgba(212, 175, 55, 0.6);
 }
 .state-date .evt-activity { color: #D4AF37; text-shadow: 0 0 10px rgba(212,175,55,0.3); }
@@ -1630,12 +1241,11 @@ form { padding: 24px; }
 .state-date .evt-type-tag { color: #D4AF37; }
 .state-date .t-start { color: #D4AF37; }
 .state-date .dur-pill { color: #D4AF37; border-color: rgba(212,175,55,0.5); background: rgba(212,175,55,0.15); }
-/* 空闲间隙 */
+
 .gap-block { display: flex; gap: 14px; margin-bottom: 10px; height: 30px; align-items: center; opacity: 0.5; }
 .gap-visual { width: 1px; height: 100%; border-left: 1px dashed #333; margin-left: 60px; }
 .gap-text { font-size: 9px; color: #444; font-style: italic; margin-left: 12px; }
 
-/* 底部交互提示条 */
 .cal-hint-box {
     position: absolute; bottom: 30px; left: 20px; right: 20px;
     background: rgba(10,10,10,0.95); border: 1px solid #333; border-radius: 12px;
