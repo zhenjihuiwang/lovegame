@@ -1,865 +1,824 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI Chat Phone</title>
+    <title>AI Otome - LoveOS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@300;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-    <!-- 引入 localForage 库 (用于无限存储) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
-    <!-- 引入图标库 -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
-    <div class="phone-frame">
-        <div id="notification-area"></div>
+    <div id="app-container">
+        <audio id="audio-bgm" loop></audio> 
+        <div id="sfx-container"></div>
 
-        <!-- 状态栏 (已添加ID) -->
-        <div class="status-bar">
-            <span id="status-time">00:00</span>
-            <div class="icons">
-                <!-- 信号图标保持静态，因为Web无法获取真实信号强度 -->
-                <i class="fas fa-signal"></i>
-                <!-- Wifi图标，稍后用JS判断是否有网 -->
-                <i class="fas fa-wifi" id="status-wifi"></i>
-                <!-- 电量图标和文字 -->
-                <span id="battery-level" style="margin-right: 5px; font-size: 10px;"></span>
-                <i class="fas fa-battery-full" id="status-battery"></i>
-            </div>
-        </div>
-        
-        <!-- 1. 手机主屏幕 -->
-        <div id="screen-home" class="screen active">
-            <div class="app-grid">
-                <div class="app-icon" onclick="goToScreen('screen-friends')">
-                    <div class="icon-img qq-style"><i class="fab fa-qq"></i></div>
-                    <span>QQ</span>
-                </div>
-                <div class="app-icon" onclick="goToScreen('screen-settings-menu')">
-                    <div class="icon-img settings-style"><i class="fas fa-tools"></i></div>
-                    <span>系统设置</span>
-                </div>
-                <div class="app-icon" onclick="goToScreen('screen-themes')">
-                    <div class="icon-img theme-style"><i class="fas fa-tshirt"></i></div>
-                    <span>主题商店</span>
-                </div>
-            </div>
+        <!-- 背景层 -->
+        <div class="layer-bg">
+            <img id="bg-img" src="" class="full-cover transition-all duration-1000 scale-110 parallax-layer" data-depth="0.02"> 
+            <div id="bg-placeholder" class="absolute inset-0 bg-[#0a0a0a] flex items-center justify-center text-[#333] text-xs tracking-[0.3em] font-serif">NO SIGNAL</div>
         </div>
 
-        <!-- === 新增：系统设置主菜单 === -->
-<div id="screen-settings-menu" class="screen">
-    <div class="header">
-        <button class="back-btn" onclick="goToScreen('screen-home')"><i class="fas fa-chevron-left"></i></button>
-        <h3>系统设置</h3>
-    </div>
-    <div class="content padding">
-        <div class="setting-menu-list">
-            <!-- 跳转到原有的 API 设置页 -->
-            <div class="menu-item" onclick="goToScreen('screen-settings')">
-                <div class="menu-icon" style="background: #a18cd1;"><i class="fas fa-network-wired"></i></div>
-                <div class="menu-text">
-                    <h4>API 连接设置</h4>
-                    <p>配置模型地址与密钥</p>
-                </div>
-                <i class="fas fa-chevron-right arrow"></i>
-            </div>
+        <div id="fx-back" class="layer-fx-back pointer-events-none absolute inset-0 transition-opacity duration-1000"></div>
 
-            <!-- 跳转到新的 声音设置页 -->
-            <div class="menu-item" onclick="goToScreen('screen-settings-sound')">
-                <div class="menu-icon" style="background: #ff9a9e;"><i class="fas fa-music"></i></div>
-                <div class="menu-text">
-                    <h4>声音与振动</h4>
-                    <p>通知音、气泡音、铃声</p>
-                </div>
-                <i class="fas fa-chevron-right arrow"></i>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- === 新增：声音设置界面 === -->
-<div id="screen-settings-sound" class="screen">
-    <div class="header">
-        <button class="back-btn" onclick="goToScreen('screen-settings-menu')"><i class="fas fa-chevron-left"></i></button>
-        <h3>声音设置</h3>
-    </div>
-    <div class="content padding scrollable">
-        
-        <!-- 0. 全局音量调节 -->
-        <div class="setting-section" style="background: white; padding: 15px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-            <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-                <h4>🔊 系统音量</h4>
-                <span id="vol-display-text" style="color:#4facfe; font-weight:bold;">50%</span>
-            </div>
-            <!-- 音量滑块 -->
-            <input type="range" id="global-volume-slider" min="0" max="1" step="0.1" value="0.5" style="width:100%;" oninput="updateVolumePreview(this.value)" onchange="saveVolumeSetting()">
-        </div>
-
-        <p style="font-size:12px; color:#999; margin-bottom:15px; text-align:center;">
-            * 系统不再提供默认声音，请手动上传音频文件 *
-        </p>
-
-        <!-- 1. 通知提示音 -->
-        <div class="setting-section sound-upload-card">
-            <div class="sound-info">
-                <h4>🔔 通知提示音</h4>
-                <p id="status-text-notif" style="font-size:12px; color:#ccc;">(未设置，静音)</p>
-            </div>
-            <button class="small-btn upload-btn" onclick="triggerSoundUpload('notif')">
-                <i class="fas fa-upload"></i> 上传
-            </button>
-            <input type="file" id="file-notif" accept="audio/*" style="display:none" onchange="handleSoundUpload('notif', this)">
-        </div>
-
-        <!-- 2. 聊天气泡音 -->
-        <div class="setting-section sound-upload-card">
-            <div class="sound-info">
-                <h4>💬 聊天气泡音</h4>
-                <p id="status-text-chat" style="font-size:12px; color:#ccc;">(未设置，静音)</p>
-            </div>
-            <button class="small-btn upload-btn" onclick="triggerSoundUpload('chat')">
-                <i class="fas fa-upload"></i> 上传
-            </button>
-            <input type="file" id="file-chat" accept="audio/*" style="display:none" onchange="handleSoundUpload('chat', this)">
-        </div>
-
-        <!-- 3. 来电铃声 -->
-        <div class="setting-section sound-upload-card">
-            <div class="sound-info">
-                <h4>📞 视频/电话铃声</h4>
-                <p id="status-text-ring" style="font-size:12px; color:#ccc;">(未设置，静音)</p>
-            </div>
-            <button class="small-btn upload-btn" onclick="triggerSoundUpload('ring')">
-                <i class="fas fa-upload"></i> 上传
-            </button>
-            <input type="file" id="file-ring" accept="audio/*" style="display:none" onchange="handleSoundUpload('ring', this)">
-        </div>
-
-        <hr style="margin-top:20px; border:0; border-top:1px solid #eee;">
-        
-        <div style="text-align: center; margin-top: 20px;">
-            <button class="primary-btn" style="background-color: #ff4757; width: auto; padding: 10px 30px;" onclick="clearAllSounds()">
-                <i class="fas fa-trash"></i> 清空所有声音
-            </button>
-        </div>
-    </div>
-</div>
-
-        <!-- 2. API 设置界面 -->
-        <div id="screen-settings" class="screen">
-            <div class="header">
-                <button class="back-btn" onclick="goToScreen('screen-settings-menu')"><i class="fas fa-chevron-left"></i></button>
-                <h3>API与数据</h3>
-            </div>
-            <div class="content padding">
-                <!-- 原有的 API 输入框保持不变 -->
-                <div class="input-group">
-                    <label>API 地址 (URL)</label>
-                    <input type="text" id="api-url" placeholder="例如 https://api.openai.com/v1">
-                </div>
-                <div class="input-group">
-                    <label>API 密钥 (Key)</label>
-                    <input type="text" id="api-key" placeholder="sk-...">
-                </div>
-                <div class="input-group">
-                    <label>模型选择 (Model)</label>
-                    <div style="display: flex; gap: 10px; align-items: center;">
-                        <select id="api-model" style="flex: 1; padding: 10px; border-radius: 10px; border: 1px solid #ddd; background: white;">
-                            <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
-                        </select>
-                        <button class="check-btn" onclick="fetchModels()" style="width: auto; padding: 10px 15px; background-color: #4facfe; color: white; border: none; border-radius: 10px;">
-                            <i class="fas fa-sync-alt"></i> 拉取
-                        </button>
-                    </div>
-                </div>
-                <button class="primary-btn" onclick="saveApiSettings()">保存配置</button>
-                
-                <hr style="margin: 20px 0; border: 0; border-top: 1px dashed #ccc;">
-
-                <!-- === 新增：全局世界控制 === -->
-                <h4 style="margin-bottom: 10px; color: #666;"><i class="fas fa-globe"></i> 虚拟世界控制</h4>
-                <div class="setting-item" style="background: white; padding: 15px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border: 1px solid #eee;">
+        <!-- 角色层 -->
+        <div class="layer-char">
     
-                    <div>
-                        <strong style="display:block; color:#333;">允许角色自由活动</strong>
-                        <small style="color:#999;">关闭后，所有角色将停止主动找你或评论</small>
-                    </div>
-
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="global-world-toggle" checked onchange="toggleWorldActivity()">
-                        <span class="slider"></span>
-                    </label>
-                </div>
-
-                <!-- ↓↓↓ 新增：手动唤醒按钮 ↓↓↓ -->
-                <div class="setting-item" style="background: white; padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #eee;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <strong style="display:block; color:#333;">手动唤醒世界</strong>
-                            <small style="color:#999;">如果感觉AI睡着了，点这里强制检查一次</small>
-                        </div>
-                        <button class="primary-btn" onclick="forceHeartbeat()" style="width: auto; padding: 8px 20px; margin-top: 0; background: #a18cd1;">
-                            <i class="fas fa-magic"></i> 戳一下
-                        </button>
-                        <button class="primary-btn" onclick="showIncomingCallScreen('测试：我想见你')" style="background: #ff3b30; margin-top: 10px;">
-                            <i class="fas fa-phone"></i> 强制测试来电
-                        </button>
-                    </div>
-                </div>
-                
-<hr style="margin: 20px 0; border: 0; border-top: 1px dashed #ccc;">
-
-                <!-- === 新增：数据备份与恢复区域 === -->
-                <h4 style="margin-bottom: 10px; color: #666;">💾 数据备份 (防丢失)</h4>
-                <div style="display: flex; gap: 10px;">
-                    <button class="primary-btn" onclick="exportData()" style="background-color: #28a745; margin-top:0;">
-                        <i class="fas fa-download"></i> 导出备份
-                    </button>
-                    <button class="primary-btn" onclick="triggerImport()" style="background-color: #ffc107; color: #333; margin-top:0;">
-                        <i class="fas fa-upload"></i> 恢复备份
-                    </button>
-                </div>
-                <small style="color: #999; display: block; margin-top: 5px;">
-                    如果是直接运行html文件，建议每次聊完天都点一下"导出备份"，文件会保存在你的电脑里。
-                </small>
-                
-                <!-- 隐藏的文件上传控件 -->
-                <input type="file" id="import-file" style="display: none;" onchange="importData(this)">
-                <!-- ============================== -->
-
-            </div>
-        </div>
-        <!-- 2.5 主题选择界面 (新增) -->
-        <div id="screen-themes" class="screen">
-            <div class="header">
-                <button class="back-btn" onclick="goToScreen('screen-home')"><i class="fas fa-chevron-left"></i></button>
-                <h3>主题商店</h3>
-            </div>
-            <div class="content padding" style="background: var(--bg-color);">
-                <div class="theme-card" onclick="switchTheme('theme-candy')">
-                    <div class="theme-preview preview-candy"></div>
-                    <div class="theme-info">
-                        <h4>🍬 棉花糖 (Candy)</h4>
-                        <p>软萌、圆润、治愈系配色</p>
-                    </div>
-                    <div class="check-mark" id="check-candy"><i class="fas fa-check"></i></div>
-                </div>
-
-                <div class="theme-card" onclick="switchTheme('theme-glass')">
-                    <div class="theme-preview preview-glass"></div>
-                    <div class="theme-info">
-                        <h4>✨ 极简磨砂 (Glass)</h4>
-                        <p>透明、模糊、iOS高级感</p>
-                    </div>
-                    <div class="check-mark" id="check-glass"><i class="fas fa-check"></i></div>
-                </div>
-
-                <!-- 3. 手绘笔记主题 -->
-                <div class="theme-card" onclick="switchTheme('theme-paper')">
-                    <!-- 预览圆圈：网格纸背景 -->
-                    <div class="theme-preview" style="background: #fdf6e3; background-image: linear-gradient(#ccc 1px, transparent 1px), linear-gradient(90deg, #ccc 1px, transparent 1px); background-size: 10px 10px;"></div>
-                    <div class="theme-info">
-                        <h4>📝 手绘笔记 (Paper)</h4>
-                        <p>温馨、网格纸、涂鸦手写风</p>
-                    </div>
-                    <div class="check-mark"><i class="fas fa-check"></i></div>
-                </div>
-
-                <!-- 4. 3D黏土主题 -->
-                <div class="theme-card" onclick="switchTheme('theme-clay')">
-                    <!-- 预览圆圈：软紫色 -->
-                    <div class="theme-preview" style="background: #F0F4F8; box-shadow: inset 2px 2px 5px #d1d9e6, inset -2px -2px 5px #fff;"></div>
-                    <div class="theme-info">
-                        <h4>🧊 3D黏土 (Clay)</h4>   
-                        <p>软萌、悬浮感、现代极简</p>
-                    </div>
-                    <div class="check-mark"><i class="fas fa-check"></i></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 3. 好友列表/动态 复合界面 (V2.0) -->
-         <div id="screen-friends" class="screen">
-            <div class="header">
-    <button class="back-btn" onclick="goToScreen('screen-home')"><i class="fas fa-chevron-left"></i></button>
-    
-    <h3 id="qq-title">好友列表</h3>
-    
-    <div style="display: flex; gap: 15px;">
-        <!-- 1. 添加好友按钮 (ID: btn-add-friend) -->
-        <button id="btn-add-friend" class="add-btn" onclick="goToScreen('screen-add-friend')" style="font-size: 18px;">
-            <i class="fas fa-user-plus"></i>
-        </button>
+            <div id="parallax-char-container" class="parallax-layer" data-depth="0.06">
         
-        <!-- 2. 发动态按钮 (ID: btn-add-moment) -->
-        <!-- 注意：这里加了 style="display:none"，默认隐藏，等切换到动态页时再显示 -->
-        <button id="btn-add-moment" class="add-btn" onclick="openPostMenu()" style="font-size: 18px; display: none;">
-            <i class="fas fa-plus-circle"></i> <!-- 图标变成带圆圈的加号 -->
-        </button>
-    </div>
-</div>
-
-    <!-- 两个子页面的容器 -->
-    <div class="content" style="padding:0;">
-        <!-- A. 好友列表 (默认显示) -->
-        <div id="friend-list-container" class="qq-tab-content active">
-            <!-- 好友会通过JS动态加载到这里 -->
-        </div>
-        <!-- B. 动态/朋友圈 (默认隐藏) -->
-        <div id="qzone-feed-container" class="qq-tab-content" style="display:none;">
-            <!-- 动态会通过JS加载到这里 -->
-        </div>
-    </div>
-
-    <!-- 底部导航栏 -->
-    <div class="bottom-nav">
-        <button id="nav-btn-friends" class="nav-btn active" onclick="switchQqTab('friends')">
-            <i class="fas fa-user-friends"></i>
-            <span>好友</span>
-        </button>
-        <button id="nav-btn-moments" class="nav-btn" onclick="switchQqTab('moments')">
-            <i class="fas fa-star"></i>
-            <span>动态</span>
-        </button>
-    </div>
-</div>
-
-<!-- 3.5. 选择好友发动态 界面 (新增) -->
-<div id="screen-select-friends-for-moment" class="screen">
-    <div class="header">
-        <button class="back-btn" onclick="backToFriendList()"><i class="fas fa-times"></i></button>
-        <h3>选择好友发动态</h3>
-    </div>
-    <div class="content padding" id="moment-friend-select-list">
-        <!-- JS会在这里渲染带复选框的好友列表 -->
-    </div>
-    <div class="confirm-moment-footer">
-        <button class="primary-btn" onclick="generateMoments()">
-            <i class="fas fa-magic"></i> 让选中的好友发动态
-        </button>
-    </div>
-</div>
-
-        <!-- 4. 添加好友/人设设置界面 -->
-        <div id="screen-add-friend" class="screen">
-            <div class="header">
-                <button class="back-btn" onclick="goToScreen('screen-friends')"><i class="fas fa-chevron-left"></i></button>
-                <h3>创建角色</h3>
-            </div>
-            <div class="content padding scrollable">
-                <h4>🤖 角色设定 (AI)</h4>
-                <div class="input-group">
-                    <input type="text" id="char-name" placeholder="角色名字">
-                    <input type="text" id="char-avatar" placeholder="角色头像URL (或使用默认)">
-                    <textarea id="char-prompt" rows="4" placeholder="输入角色人设，例如：你是一个傲娇的猫娘..."></textarea>
+                <div id="char-wrapper">
+                    <img id="char-img" src="" class="full-cover hidden breathing"> 
                 </div>
-
-                <hr>
-
-                <h4>👤 你的设定 (用户)</h4>
-                <div class="input-group">
-                    <input type="text" id="user-name" placeholder="你的名字">
-                    <input type="text" id="user-avatar" placeholder="你的头像URL">
-                    <textarea id="user-intro" rows="2" placeholder="你的简介/两人关系"></textarea>
-                </div>
-
-                <button class="primary-btn" onclick="saveFriend()">保存角色</button>
             </div>
         </div>
 
-        <!-- 5. 聊天界面 (仿LINE) -->
-        <div id="screen-chat" class="screen">
-            <div class="header chat-header">
-                <button class="back-btn" onclick="backToFriendList()"><i class="fas fa-chevron-left"></i></button>
-                <h3 id="chat-title">聊天中</h3>
-                <button class="menu-btn" onclick="openChatSettings()"><i class="fas fa-bars"></i></button>
-            </div>
-            <!-- 多选操作栏 (默认隐藏) -->
-            <div id="multi-select-bar" class="header select-header" style="display:none;">
-                <button class="back-btn" onclick="exitSelectionMode()">取消</button>
-                <span id="select-count">已选 0</span>
-                <button class="delete-btn" onclick="deleteSelectedMessages()"><i class="fas fa-trash"></i></button>
-            </div>
+        <div id="fx-front" class="layer-fx-front pointer-events-none absolute inset-0 z-[5]"></div>
+
+        <!-- UI 层 -->
+        <div class="layer-ui flex flex-col justify-between p-6">
             
-            <div class="chat-area" id="chat-box">
-                <!-- 聊天记录显示在这里 -->
-            </div>
-            <!-- 引用消息预览 (默认隐藏) -->
-            <div id="quote-preview-box" class="quote-box" style="display:none;">
-                <div class="quote-content">
-                    <span id="quote-text">引用内容...</span>
+            <!-- ==== 左上角状态监视器==== -->
+            <div class="absolute top-6 left-6 z-50 pointer-events-auto font-sans">
+    
+                <!-- 1. 常驻小胶囊  -->
+                <button onclick="statusManager.toggle()" id="status-trigger" class="flex items-center gap-3 bg-black/40 backdrop-blur-md border border-white/10 rounded-full pl-1 pr-4 py-1 hover:bg-black/60 hover:border-[#D4AF37]/50 transition-all group">
+                    <div class="w-6 h-6 rounded-full bg-[#D4AF37] flex items-center justify-center text-black text-xs group-hover:scale-110 transition-transform">
+                        <i class="ph-fill ph-broadcast"></i>
+                    </div>
+                    <div class="flex flex-col items-start leading-none">
+                        <span class="text-[8px] text-[#D4AF37] tracking-widest font-bold">SYSTEM</span>
+                        <span class="text-[10px] text-gray-300 font-serif" id="mini-status-text">Online</span>
+                    </div>
+                </button>
+
+    <!-- 2. 展开后的毛玻璃面板 (默认隐藏) -->
+    <div id="status-panel" class="absolute top-10 left-0 w-[260px] bg-[#1a1a1a]/80 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-2xl opacity-0 pointer-events-none transition-all duration-300 scale-95 origin-top-left">
+        
+        <!-- 面板顶部：标签页切换 -->
+
+        <div class="flex border-b border-white/10 pb-2 mb-3 gap-4">
+            <button onclick="statusManager.switchTab('main')" class="status-tab active text-[10px] font-bold text-[#D4AF37] tracking-widest hover:text-white" data-tab="main">环境</button>
+            <button onclick="statusManager.switchTab('core')" class="status-tab text-[10px] font-bold text-gray-600 tracking-widest hover:text-white" data-tab="core">核心</button>
+            <button onclick="statusManager.switchTab('sys')"  class="status-tab text-[10px] font-bold text-gray-600 tracking-widest hover:text-white" data-tab="sys">系统</button>
+            <button onclick="statusManager.toggle()" class="ml-auto text-gray-500 hover:text-white"><i class="ph ph-x"></i></button>
+        </div>
+
+        <!-- 内容区域 -->
+        <div id="status-content">
+            
+            <!-- Tab 1: MAIN (视听与环境) -->
+            <div id="status-view-main" class="status-view space-y-3">
+                
+                <!-- 音乐卡片 -->
+                <div>
+                    <div class="text-[9px] text-gray-500 mb-1 tracking-wider">NOW PLAYING</div>
+                    <div class="flex items-center gap-3 bg-black/20 p-2 rounded-lg border border-white/5">
+                        <div class="w-8 h-8 bg-[#D4AF37]/20 rounded flex items-center justify-center text-[#D4AF37]">
+                            <i class="ph-fill ph-music-note"></i>
+                        </div>
+                        <div class="flex-1 overflow-hidden">
+                            <div id="status-bgm-name" class="text-[10px] text-white truncate font-serif">No Signal</div>
+                            <div id="status-sfx-name" class="text-[9px] text-gray-500 truncate">Silence</div>
+                        </div>
+                        <i class="ph ph-waveform text-[#D4AF37] animate-pulse"></i>
+                    </div>
                 </div>
-                <button class="close-quote-btn" onclick="cancelQuote()"><i class="fas fa-times"></i></button>
+
+                <!-- 天气同步对比 -->
+                <div>
+                    <div class="text-[9px] text-gray-500 mb-1 tracking-wider">ENV SYNC (WEATHER)</div>
+                    <div class="flex gap-2">
+                        <!-- 用户端 (自动获取) -->
+                        <div class="flex-1 bg-white/5 rounded p-2 text-center border border-white/5">
+                            <div class="text-[8px] text-gray-400 mb-1">LOCAL (YOU)</div>
+                            <i id="weather-icon-local" class="ph ph-cloud text-lg text-gray-300 mb-1"></i>
+                            <div id="weather-text-local" class="text-[10px] font-bold">--°C</div>
+                        </div>
+                        <!-- AI端 (基于设定) -->
+                        <div class="flex-1 bg-[#D4AF37]/10 rounded p-2 text-center border border-[#D4AF37]/30 relative overflow-hidden">
+                            <div class="absolute -right-2 -top-2 w-6 h-6 bg-[#D4AF37] blur-lg opacity-20"></div>
+                            <div class="text-[8px] text-[#D4AF37] mb-1">HOST (HIM)</div>
+                            <i id="weather-icon-ai" class="ph-fill ph-cloud-rain text-lg text-[#D4AF37] mb-1"></i>
+                            <div id="weather-text-ai" class="text-[10px] font-bold text-[#D4AF37]">Syncing...</div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
 
-            <!-- 新版底部区域：包含输入条 + 抽屉 -->
-            <div class="chat-footer">
-                
-                <!-- 1. 输入工具条 -->
-                <div class="input-bar">
-                    <!-- 抽屉开关 -->
-                    <button class="tool-btn-toggle" onclick="toggleDrawer()">
-                        <i class="fas fa-plus" id="drawer-icon"></i>
+            <!-- Tab 2: CORE (核心状态 - 灵魂链接) -->
+<div id="status-view-core" class="status-view hidden">
+    
+    <div class="text-[9px] text-gray-600 tracking-[0.2em] text-center mb-2 uppercase">Consciousness // 意识</div>
+
+    <!-- 灵魂球 -->
+    <div class="soul-orb">
+        <div id="core-aff-num" class="text-xl text-[#D4AF37] font-serif font-bold">--%</div>
+        <div class="text-[7px] text-gray-500 uppercase tracking-widest mt-1">同步率</div>
+        <!-- 情感色块背景 -->
+        <div id="core-mood-glow" class="mood-glow"></div>
+    </div>
+
+    <!-- 思维流 -->
+    <div class="mb-1 flex justify-between items-end">
+        <span class="text-[8px] text-gray-600 tracking-widest uppercase">Thought Stream</span>
+        <i class="ph-fill ph-chat-teardrop-text text-gray-700 text-xs"></i>
+    </div>
+    <div class="thought-stream" id="core-thought-stream">
+        <div class="thought-item">正在建立神经链接...</div>
+    </div>
+
+    <!-- 生理指标 -->
+    <div class="text-[9px] text-gray-600 tracking-[0.2em] mb-2 mt-4 uppercase border-t border-white/5 pt-2">Physiology // 生理</div>
+
+    <!-- 精力 -->
+    <div class="vital-card">
+        <div class="vital-label"><i class="ph-fill ph-lightning text-gray-500"></i> 精力</div>
+        <div class="vital-dots" id="dots-energy"></div>
+    </div>
+
+    <!-- 饱腹 -->
+    <div class="vital-card">
+        <div class="vital-label"><i class="ph-fill ph-hamburger text-gray-500"></i> 饱腹</div>
+        <div class="vital-dots" id="dots-satiety"></div>
+    </div>
+
+    <!-- 理智 -->
+    <div class="vital-card">
+        <div class="vital-label"><i class="ph-fill ph-brain text-gray-500"></i> 理智</div>
+        <div class="vital-dots" id="dots-sanity"></div>
+    </div>
+</div>
+
+            <!-- Tab 3: SYS (未来扩展预留) -->
+            <div id="status-view-sys" class="status-view hidden space-y-2">
+                <div class="flex justify-between text-[9px] text-gray-400 border-b border-white/5 pb-1">
+                    <span>UPTIME</span> <span class="text-white font-mono">03:12:45</span>
+                </div>
+                <div class="flex justify-between text-[9px] text-gray-400 border-b border-white/5 pb-1">
+                    <span>LATENCY</span> <span class="text-green-400 font-mono">24ms</span>
+                </div>
+                <div class="flex justify-between text-[9px] text-gray-400">
+                    <span>VERSION</span> <span class="text-white font-mono">LoveOS v1.2</span>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+            <!-- 顶部按钮 -->
+            <div class="flex justify-end pt-2 pointer-events-auto gap-4">
+                <button onclick="uiManager.openSettings()" class="text-white/50 hover:text-[#D4AF37] transition">
+                    <i class="ph ph-list text-2xl"></i>
+                </button>
+                <button onclick="dockManager.toggle()" class="text-white/50 hover:text-[#D4AF37] transition" title="功能菜单">
+                    <i class="ph ph-squares-four text-2xl"></i>
+                </button>
+            </div>
+
+            <!-- 底部对话区与输入框 -->
+            <div class="flex flex-col gap-4 pb-2 pointer-events-auto">
+                <div id="dialogue-box" class="editorial-box hidden" onclick="director.next()">
+                    <div class="editorial-header">
+                        <div id="char-name" class="name-gold">LOADING</div>
+                        <button onclick="event.stopPropagation(); historyManager.show()" class="log-btn">LOG</button>
+                    </div>
+                    <p id="dialogue-text" class="text-content">...</p>
+                    <div class="nav-controls">
+                        <button id="btn-prev" class="nav-arrow hidden" onclick="event.stopPropagation(); director.prev()">
+                            <i class="ph ph-caret-left"></i> BACK
+                        </button>
+                        <div id="indicator-next" class="nav-arrow right">
+                            NEXT <i class="ph ph-caret-right"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ==== 完美适配版输入栏 ==== -->
+                <div class="input-glass-bar">
+                    <!-- 1. 左侧：模式切换 -->
+                    <button id="mode-btn" onclick="aiEngine.toggleMode()" class="mode-switch-text">
+                        对话模式
                     </button>
                     
-                    <!-- 输入框 -->
-                    <input type="text" id="message-input" placeholder="聊点什么...">
-                    
-                    <!-- 两个高频按钮 (放在外面) -->
+                    <!-- 2. 分割线 -->
+                    <div class="input-divider"></div>
+
+                    <!-- 3. 中间：输入框 (自适应) -->
+                    <input type="text" id="user-input" placeholder="输入..." autocomplete="off"
+                           onkeypress="if(event.keyCode==13) aiEngine.queueInput()">
+
+                    <!-- 4. 右侧：按钮组 (固定不缩放) -->
                     <div class="action-buttons">
-                        <button class="send-btn user-send" onclick="sendUserMessage()">
-                            <i class="fas fa-paper-plane"></i>
+                        <!-- 发送键 -->
+                        <button onclick="aiEngine.queueInput()" id="send-btn" class="btn-send-style" title="存入剧本">
+                            <i class="ph ph-paper-plane-right"></i>
                         </button>
-                        <button class="send-btn ai-trigger" onclick="triggerAIResponse()">
-                            <i class="fas fa-wand-magic-sparkles"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- 2. 功能抽屉 (标准结构修复版) -->
-                <div class="drawer-panel" id="tool-drawer">
-                    <div class="drawer-grid">
-                        <!-- 相册 -->
-                        <div class="drawer-item" onclick="alert('相册功能开发中...')">
-                            <div class="d-icon"><i class="fas fa-image"></i></div>
-                            <span>相册</span>
-                        </div>
-                        <!-- 拍照 -->
-                        <div class="drawer-item" onclick="alert('拍照功能开发中...')">
-                            <div class="d-icon"><i class="fas fa-camera"></i></div>
-                            <span>拍照</span>
-                        </div>
-                        <!-- 视频 -->
-                        <div class="drawer-item" onclick="enterVideoCall()">
-                            <div class="d-icon"><i class="fas fa-video"></i></div>
-                            <span>视频</span>
-                        </div>
-                        <!-- 位置 -->
-                        <div class="drawer-item" onclick="alert('位置共享开发中...')">
-                            <div class="d-icon"><i class="fas fa-map-marker-alt"></i></div>
-                            <span>位置</span>
-                        </div>
-                        <!-- 表情 -->
-                        <div class="drawer-item" onclick="toggleStickerPanel()">
-                            <div class="d-icon"><i class="far fa-laugh-squint"></i></div>
-                            <span>表情包</span>
-                        </div>
-                        <!-- 文件 -->
-                        <div class="drawer-item" onclick="alert('发送文件...')">
-                            <div class="d-icon"><i class="fas fa-folder-open"></i></div>
-                            <span>文件</span>
-                        </div>
-                        <!-- 语音 -->
-                        <div class="drawer-item" onclick="alert('语音通话...')">
-                            <div class="d-icon"><i class="fas fa-phone"></i></div>
-                            <span>语音</span>
-                        </div>
-                        <!-- 红包 (注意这里是 openSendPacketModal) -->
-                        <div class="drawer-item" onclick="openSendPacketModal()">
-                            <div class="d-icon"><i class="fas fa-gift"></i></div>
-                            <span>红包</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <!-- 6. 聊天具体设置界面 (新增) -->
-        <div id="screen-chat-settings" class="screen">
-            <div class="header">
-                <button class="back-btn" onclick="backToChat()"><i class="fas fa-chevron-left"></i></button>
-                <h3>详细设置</h3>
-            </div>
-            <div class="content padding scrollable">
-                
-                <!-- A. 基本信息修改 -->
-                <div class="setting-section">
-                    <h4>📝 设定修改</h4>
-                    <div class="input-group">
-                        <label>角色名</label>
-                        <input type="text" id="edit-char-name">
-                    </div>
-                    <div class="input-group">
-                        <label>角色头像 (点击更换)</label>
-                        <div class="avatar-upload" onclick="triggerFileUpload('edit-char-avatar-file')">
-                            <img id="preview-char-avatar" src="" class="upload-preview">
-                            <span>点击上传本地图片</span>
-                        </div>
-                        <input type="file" id="edit-char-avatar-file" accept="image/*" style="display:none" onchange="handleFileSelect(this, 'preview-char-avatar')">
-                    </div>
-                    <div class="input-group">
-                        <label>角色人设 (Prompt)</label>
-                        <textarea id="edit-char-prompt" rows="3"></textarea>
-                    </div>
-                    <hr>
-                    <div class="input-group">
-                        <label>你的名字</label>
-                        <input type="text" id="edit-user-name">
-                    </div>
-                    <div class="input-group">
-                        <label>你的头像</label>
-                        <div class="avatar-upload" onclick="triggerFileUpload('edit-user-avatar-file')">
-                            <img id="preview-user-avatar" src="" class="upload-preview">
-                            <span>点击上传本地图片</span>
-                        </div>
-                        <input type="file" id="edit-user-avatar-file" accept="image/*" style="display:none" onchange="handleFileSelect(this, 'preview-user-avatar')">
-                    </div>
-                    <!-- 放在“你的头像” input-group 的下面 -->
-                    <div class="input-group">
-                        <label>你的简介 / 两人关系</label>
-                        <textarea id="edit-user-intro" rows="3" placeholder="例如：我是你的青梅竹马，性格比较内向..."></textarea>
-                    </div>
-                </div>
-
-                <!-- === 新增：互动频率控制 === -->
-<div class="setting-section interaction-frequency">
-    <h4><i class="fas fa-sliders-h" style="color: #a18cd1;"></i> 互动频率</h4>
-    <div class="segmented-control" id="frequency-selector">
-        <button class="option-btn" onclick="setActivityLevel('active')" id="btn-freq-active">
-            <i class="fas fa-fire"></i> 活跃
-        </button>
-        <button class="option-btn" onclick="setActivityLevel('standard')" id="btn-freq-standard">
-            <i class="fas fa-user-friends"></i> 标准
-        </button>
-        <button class="option-btn" onclick="setActivityLevel('quiet')" id="btn-freq-quiet">
-            <i class="fas fa-leaf"></i> 安静
-        </button>
-        <button class="option-btn" onclick="setActivityLevel('muted')" id="btn-freq-muted">
-            <i class="fas fa-moon"></i> 沉睡
-        </button>
-    </div>
-    <p id="freq-desc-text" class="option-description">
-        选择角色的活跃程度...
-    </p>
-</div>
-
-                <!-- B. 外观设置 -->
-                <div class="setting-section">
-                    <h4>🎨 外观定制</h4>
-                    
-                    <div class="input-group">
-                        <label>聊天背景图</label>
-                        <div class="avatar-upload" onclick="triggerFileUpload('bg-file')">
-                            <img id="preview-bg" src="" class="upload-preview" style="width:100%; height:100px; object-fit:cover;">
-                            <span>点击选择背景</span>
-                        </div>
-                        <input type="file" id="bg-file" accept="image/*" style="display:none" onchange="handleFileSelect(this, 'preview-bg')">
-                        <button class="small-btn" onclick="clearBackground()">清除背景</button>
-                    </div>
-
-                    <label>💬 气泡样式 (CSS)</label>
-                    
-                    <!-- 样式预设区 -->
-                    <div class="preset-area">
-                        <label>预设方案：</label>
-                        <select id="bubble-preset-select" onchange="loadBubblePreset()">
-                            <option value="">-- 选择预设 --</option>
-                        </select>
-                        <div style="display:flex; gap:5px; margin-top:5px;">
-                            <input type="text" id="new-preset-name" placeholder="新预设名称" style="flex:1;">
-                            <button class="small-btn" onclick="saveAsPreset()">保存为预设</button>
-                        </div>
-                    </div>
-
-                    <!-- CSS 编辑区 -->
-                    <div class="css-editor">
-                        <label>AI 气泡 CSS:</label>
-                        <textarea id="css-ai-bubble" rows="3" oninput="updatePreview()"></textarea>
                         
-                        <label>用户 气泡 CSS:</label>
-                        <textarea id="css-user-bubble" rows="3" oninput="updatePreview()"></textarea>
-                    </div>
-
-                    <!-- 实时预览框 -->
-                    <div class="preview-box" id="style-preview-box">
-                        <div class="message ai">
-                            <img src="" class="msg-avatar preview-ai-avatar">
-                            <div class="msg-bubble" id="preview-bubble-ai">AI 的气泡样式预览</div>
-                        </div>
-                        <div class="message user">
-                            <div class="msg-bubble" id="preview-bubble-user">我的气泡样式预览</div>
-                            <img src="" class="msg-avatar preview-user-avatar">
-                        </div>
+                        <!-- 生成键 -->
+                        <button onclick="aiEngine.triggerResponse()" id="trigger-btn" class="btn-sparkle" title="生成回复">
+                            <i class="ph ph-sparkle"></i>
+                        </button>
                     </div>
                 </div>
-
-                <button class="primary-btn" onclick="saveChatSettings()">保存所有修改</button>
-                <div style="height: 50px;"></div>
+                <!-- ==== 输入栏结束 ==== -->
             </div>
         </div>
 
-    </div>
-
-    <!-- 7. 新增：视频通话记录回顾弹窗 -->
-<div id="modal-video-history" class="modal-overlay" onclick="closeVideoHistoryModal()">
-    <div class="modal-content" onclick="event.stopPropagation()">
-        <div class="history-header">
-            <h3><i class="fas fa-film"></i> 通话剧本</h3>
-            <button class="close-btn" onclick="closeVideoHistoryModal()" style="background:none; border:none; color:#D4AF37; font-size:18px;">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <div id="video-script-list" class="script-list">
-            <!-- JS 会把剧本渲染在这里 -->
-        </div>
-    </div>
-</div>
-
-    <!-- ============================================== -->
-    <!-- 6. 新增：视频通话界面 (磨砂黑金版) -->
-    <!-- ============================================== -->
-    <div id="screen-video-call" class="screen">
-        <div class="phone-frame-inner">
-            <!-- 纯净星空背景 -->
-            <div id="star-bg" class="bg-layer"></div>
-
-            <!-- 界面交互层 -->
-            <div class="interface-layer">
-                
-                <!-- 顶部：角色小窗 + 挂断 -->
-                <div class="video-top-bar">
-                    <div class="pip-window">
-                        <!-- 这里的头像会由 JS 自动替换 -->
-                        <img id="video-partner-avatar" src="" class="pip-img">
-                        <!-- 音频波形 -->
-                        <div class="wave-container">
-                            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
-                        </div>
-                    </div>
-                    
-                    <button class="btn-hangup" onclick="exitVideoCall()"><i class="fas fa-phone-slash"></i></button>
-                </div>
-
-                <!-- 聊天区域 -->
-                <div class="video-chat-area" id="video-chat-box">
-                    <!-- 消息会显示在这里 -->
-                </div>
-
-                <!-- 底部：输入 + 双按钮 -->
-                <div class="video-bottom-bar">
-                    <input type="text" id="video-input" class="video-input-box" placeholder="输入回复...">
-                    
-                    <!-- 获取回复 (Magic) -->
-                    <button class="circle-btn btn-magic" onclick="triggerVideoAI(false)" title="让AI回应">
-                        <i class="fas fa-wand-magic-sparkles"></i>
-                    </button>
-                    
-                    <!-- 发送消息 (Send) -->
-                    <button class="circle-btn btn-send" onclick="sendVideoMessage()" title="发送">
-                        <i class="fas fa-paper-plane"></i>
-                    </button>
-                </div>
+        <!-- 历史记录面板 -->
+        <div id="history-modal" class="absolute inset-0 z-40 bg-[#0a0a0a]/95 backdrop-blur-md flex flex-col transition-opacity duration-300 opacity-0 pointer-events-none">
+            <div class="p-8 border-b border-white/10 flex justify-between items-center">
+                <span class="text-[#D4AF37] text-xs tracking-[0.2em] font-serif">剧情记录</span>
+                <button onclick="historyManager.hide()" class="text-gray-500 hover:text-white"><i class="ph ph-x text-xl"></i></button>
             </div>
-        </div>
-    </div>
-
-    <script src="script.js"></script>
-    <!-- 消息操作菜单 (Action Sheet) -->
-    <div id="msg-action-menu" class="modal-overlay" onclick="closeActionMenu()">
-        <div class="action-sheet" onclick="event.stopPropagation()">
-            <div class="action-item" onclick="handleMenuAction('reply')"><i class="fas fa-reply"></i> 引用</div>
-            <div class="action-item" onclick="handleMenuAction('copy')"><i class="fas fa-copy"></i> 复制</div>
-            <div class="action-item" onclick="handleMenuAction('edit')"><i class="fas fa-pen"></i> 编辑</div>
-            <div class="action-item" onclick="handleMenuAction('regenerate')" id="btn-regen"><i class="fas fa-sync-alt"></i> 重生成</div>
-            <div class="action-item" onclick="handleMenuAction('multi')"><i class="fas fa-check-circle"></i> 多选</div>
-            <div class="action-item destruct" onclick="handleMenuAction('delete')"><i class="fas fa-trash"></i> 删除</div>
-        </div>
-    </div>
-
-    <!-- 消息编辑弹窗 -->
-    <div id="msg-edit-modal" class="modal-overlay">
-        <div class="edit-box">
-            <h3>编辑消息</h3>
-            <textarea id="edit-msg-content" rows="5"></textarea>
-            <div class="edit-buttons">
-                <button onclick="closeEditModal()">取消</button>
-                <button class="primary" onclick="confirmEditMessage()">确定</button>
+            <div id="history-list" class="flex-1 overflow-y-auto p-8 space-y-6 scrollbar-hide"></div>
+            <div class="p-4 border-t border-white/10 text-center">
+                <button onclick="historyManager.clear()" class="text-[10px] text-red-900 hover:text-red-500 tracking-widest uppercase transition">清空当前记录</button>
             </div>
-        </div>
-    </div>
-    <!-- 1. 发红包填写弹窗 -->
-    <div id="modal-send-packet" class="modal-overlay">
-        <div class="packet-modal">
-            <div class="packet-header">
-                <h3>发红包</h3>
-                <button class="close-btn" onclick="closePacketModal('modal-send-packet')"><i class="fas fa-times"></i></button>
+            <!-- 多选模式：顶部栏 -->
+            <div id="batch-bar">
+                <span id="batch-count">已选择 0 项</span>
+                <button onclick="historyManager.exitBatchMode()" class="px-3 py-1 bg-black/20 rounded hover:bg-black/40 transition">完成</button>
             </div>
-            <div class="packet-body">
-                <div class="money-input">
-                    <span>¥</span>
-                    <input type="number" id="packet-amount" placeholder="0.00">
-                </div>
-                <input type="text" id="packet-text" class="text-input" placeholder="恭喜发财，大吉大利">
-                <button class="packet-btn-primary" onclick="confirmSendPacket()">塞钱进红包</button>
-            </div>
-        </div>
-    </div>
 
-    <!-- 2. 拆红包/操作弹窗 -->
-    <!-- 修改点：添加了 onclick="closePacketModal..." 让点击背景能关闭 -->
-    <div id="modal-open-packet" class="modal-overlay" onclick="closePacketModal('modal-open-packet')">
-        <!-- 修改点：添加了 onclick="event.stopPropagation()" 防止点红包本体时误关闭 -->
-        <div class="packet-modal open-style" onclick="event.stopPropagation()">
-            <div class="red-bg">
-                <div class="avatar-wrapper">
-                    <img id="packet-sender-avatar" src="">
-                </div>
-                <h4 id="packet-sender-name">谁发的红包</h4>
-                <p id="packet-msg-preview">祝福语</p>
-            </div>
-            <div class="packet-result">
-                <h2 id="packet-money-display">¥ ??</h2>
-                <div id="packet-actions" class="packet-actions">
-                    <button class="action-btn receive" onclick="handlePacketAction('receive')">领取红包</button>
-                    <button class="action-btn return" onclick="handlePacketAction('return')">退回红包</button>
-                </div>
-                <p id="packet-status-text" style="display:none; color:#999; margin-top:20px;">已领取/已退回</p>
-            </div>
+<!-- 多选模式：底部悬浮删除 -->
+<button id="batch-delete-fab" onclick="historyManager.deleteBatch()">
+    <i class="ph ph-trash"></i> 确认删除
+</button>
         </div>
-    </div>
-    <!-- === 新增：表情包面板 (默认隐藏) === -->
-<div id="sticker-panel" class="sticker-panel" style="display:none;">
-    <div class="sticker-header">
-        <span>我的表情包</span>
-        <button class="add-sticker-btn" onclick="openAddStickerModal()">
-            <i class="fas fa-plus"></i> 添加
-        </button>
-    </div>
-    <div id="sticker-grid" class="sticker-grid">
-        <!-- JS 会把表情渲染在这里 -->
-    </div>
-</div>
 
-<!-- === 新增：添加表情包弹窗 === -->
-<div id="modal-add-sticker" class="modal-overlay">
-    <div class="packet-modal">
-        <div class="packet-header">
-            <h3>添加表情包</h3>
-            <button class="close-btn" onclick="closePacketModal('modal-add-sticker')"><i class="fas fa-times"></i></button>
-        </div>
-        <div class="packet-body">
-            <div class="avatar-upload" onclick="triggerFileUpload('sticker-file-input')">
-                <img id="preview-sticker-upload" src="" class="upload-preview" style="object-fit: contain;">
-                <span>点击上传图片</span>
-            </div>
-            <input type="file" id="sticker-file-input" accept="image/*" style="display:none" onchange="handleFileSelect(this, 'preview-sticker-upload')">
-            
-            <p style="font-size:12px; color:#666;">告诉AI这张图是什么意思（重要）：</p>
-            <input type="text" id="sticker-desc" class="text-input" placeholder="例如：一只哭泣的猫猫，表示委屈">
-            
-            <button class="packet-btn-primary" onclick="confirmAddSticker()">保存表情</button>
-        </div>
-    </div>
-</div>
-<!-- 动态图片详情弹窗 -->
-<div id="modal-moment-image-detail" class="modal-overlay" onclick="closeImageDetailModal()">
-    <div class="moment-image-modal" onclick="event.stopPropagation()">
-        <div class="moment-image-placeholder">
-            <i class="fas fa-image"></i>
-            <span>AI 生成的图片(占位符)</span>
-        </div>
-        <div id="moment-image-description" class="moment-image-desc">
-            这里是AI生成的图片详细描述...
-        </div>
-    </div>
-</div>
-
-<!-- === 新增 1: 发布类型选择菜单 (用户发还是让AI发) === -->
-<div id="modal-post-menu" class="modal-overlay" onclick="closePostMenu()">
-    <div class="action-sheet" onclick="event.stopPropagation()">
-        <div class="action-item" onclick="openUserPostModal()">
-            <i class="fas fa-user-edit" style="color: #FF9A9E;"></i> 我要发动态
-        </div>
-        <div class="action-item" onclick="openFriendSelectionForMoment()">
-            <i class="fas fa-magic" style="color: #a18cd1;"></i> 让 AI 好友发动态
-        </div>
-    </div>
-</div>
-
-<!-- === 新增 2: 用户发布动态的填写弹窗 === -->
-<div id="modal-user-post" class="screen">
-    <div class="header">
-        <button class="back-btn" onclick="closeUserPostModal()"><i class="fas fa-times"></i></button>
-        <h3>发布动态</h3>
-        <button class="add-btn" onclick="submitUserPost()" style="font-size: 16px; font-weight: bold; color: #4facfe;">发布</button>
-    </div>
-    <div class="content padding">
-        <!-- 文本内容 -->
-        <textarea id="user-post-text" rows="4" placeholder="这一刻的想法..." style="border:none; background:transparent; font-size:16px;"></textarea>
+        <!-- 素材编辑 -->
+<div id="asset-modal" class="absolute inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center transition-opacity duration-200 opacity-0 pointer-events-none">
+    <div class="asset-card" onclick="event.stopPropagation()">
+        <!-- 预览区 -->
+        <div id="asset-preview-area" class="w-full h-48 bg-[#111] flex items-center justify-center border-b border-white/10 relative overflow-hidden"></div>
         
-        <!-- 图片描述 (仿照AI逻辑) -->
-        <div style="background: rgba(0,0,0,0.05); padding: 15px; border-radius: 10px; margin-bottom: 20px;">
-            <p style="font-size: 12px; color: #999; margin-bottom: 5px;"><i class="fas fa-image"></i> 图片内容描述 (AI也能看懂)</p>
-            <input type="text" id="user-post-img-desc" placeholder="例如：一张我在海边拿着冰淇淋的自拍" style="background: white;">
+        <div class="p-6 space-y-4">
+            <!-- 1. 修改分类 (新增功能) -->
+            <div class="input-group">
+                <label>TYPE (分类)</label>
+                <select id="edit-asset-type" class="mono-input mt-1">
+                    <option value="char">立绘 (Char)</option>
+                    <option value="bg">背景 (Bg)</option>
+                    <option value="bgm">BGM</option>
+                    <option value="sfx">音效 (SFX)</option>
+                </select>
+            </div>
+
+            <!-- 2. 修改标签 -->
+            <div class="input-group">
+                <label class="flex justify-between">
+                    <span>TAG (标签)</span>
+                    <span class="text-[9px] text-gray-500">点击下方添加</span>
+                </label>
+                <div class="flex items-center border-b border-white/30 pb-1 gap-2">
+                    <i class="ph ph-tag text-gray-500"></i>
+                    <input type="text" id="edit-asset-tag" class="bg-transparent border-none text-white text-sm w-full focus:outline-none font-mono" autocomplete="off">
+                    <button onclick="tagManager.addFromInput('edit-asset-tag')" class="text-[#D4AF37] hover:text-white text-xs"><i class="ph ph-plus"></i></button>
+                </div>
+                <div id="edit-tag-bank" class="flex gap-2 mt-2 overflow-x-auto pb-1 scrollbar-hide h-8 items-center"></div>
+            </div>
+
+            <!-- 3. 修改归属 -->
+            <div class="input-group">
+                <label>SCOPE (归属)</label>
+                <div class="flex gap-2 mt-2">
+                    <button onclick="assetManager.setEditScope('global')" id="scope-btn-global" class="scope-chip"><i class="ph ph-globe"></i> 全局通用</button>
+                    <button onclick="assetManager.setEditScope('local')" id="scope-btn-local" class="scope-chip"><i class="ph ph-user"></i> 角色专属</button>
+                </div>
+            </div>
+
+            <!-- 按钮组 -->
+            <div class="flex gap-3 pt-2">
+                <button onclick="assetManager.deleteAsset()" class="flex-1 border border-red-900/50 text-red-700 hover:bg-red-900/20 py-2 text-xs tracking-widest transition">DELETE</button>
+                <button onclick="assetManager.saveChanges()" class="flex-[2] bg-[#D4AF37] text-black font-bold py-2 text-xs tracking-widest hover:opacity-90 transition">SAVE CHANGES</button>
+            </div>
+        </div>
+        <button onclick="assetManager.closeModal()" class="absolute top-2 right-2 text-white/50 hover:text-white bg-black/50 rounded-full p-1"><i class="ph ph-x"></i></button>
+    </div>
+</div>
+
+        <!-- 设置面板 -->
+        <div id="settings-modal" class="absolute inset-0 z-50 bg-[#050505] transition-transform duration-300 translate-y-full flex flex-col">
+            <div class="flex justify-between items-center p-6 border-b border-white/10">
+                <h2 class="text-[#D4AF37] text-lg font-serif italic">系统配置</h2>
+                <button onclick="uiManager.closeSettings()" class="text-gray-500 hover:text-white"><i class="ph ph-x text-2xl"></i></button>
+            </div>
+            <div class="flex px-6 pt-6 gap-6 border-b border-white/5 overflow-x-auto scrollbar-hide">
+                <button onclick="uiManager.switchTab('brain')" class="tab-btn active" data-tab="brain">大脑</button>
+                <button onclick="uiManager.switchTab('persona')" class="tab-btn" data-tab="persona">人设</button>
+                <button onclick="uiManager.switchTab('assets')" class="tab-btn" data-tab="assets">素材</button>
+                <button onclick="uiManager.switchTab('data')" class="tab-btn" data-tab="data">数据</button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-6 scrollbar-hide font-sans">
+                <!-- Tab 1: Brain -->
+                <div id="tab-brain" class="tab-content space-y-6">
+                    <div class="input-group"><label>API 地址 (URL)</label><input type="text" id="api-url" class="mono-input" autocomplete="off"></div>
+                    <div class="input-group"><label>API 密钥 (KEY)</label><input type="text" id="api-key" class="mono-input" autocomplete="off"></div>
+                    <div class="input-group">
+                        <label>模型选择</label>
+                        <div class="flex gap-2"><select id="api-model" class="mono-input flex-1"></select><button onclick="aiEngine.fetchModels()" class="gold-btn-outline">测试连接</button></div>
+                        <div id="brain-status" class="text-[10px] text-gray-500 mt-1 text-right">未连接</div>
+                    </div>
+                    
+                    <div class="border-t border-white/10 pt-4 mt-2">
+                        <div class="flex justify-between items-center">
+                            <label class="text-gray-400 text-xs">开启 3D 视差 (陀螺仪)</label>
+                            <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in" onclick="parallaxManager.toggle()">
+                                <input type="checkbox" id="gyro-toggle" class="absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer checked:right-0 right-5"/>
+                                <label for="gyro-toggle" class="block overflow-hidden h-5 rounded-full bg-gray-800 cursor-pointer border border-gray-600"></label>
+                            </div>
+                        </div>
+                        <p class="text-[9px] text-gray-600 mt-1">晃动手机以感受伪3D效果。</p>
+                    </div>
+                </div>
+
+                <!-- Tab 2: Persona -->
+<div id="tab-persona" class="tab-content hidden flex flex-col h-full">
+    <!-- 1. 顶部：角色切换列表 -->
+    <div class="mb-6">
+        <label class="block font-inter text-[9px] text-[#666] tracking-widest mb-3">当前角色</label>
+        <div id="char-list" class="flex gap-3 overflow-x-auto pb-2 scrollbar-hide"></div>
+        <button onclick="characterManager.createNew()" class="mt-2 text-[10px] text-[#D4AF37] border-b border-[#D4AF37] pb-1 hover:text-white hover:border-white transition">+ 新建角色</button>
+    </div>
+
+    <!-- 2. 中间：滚动区域 -->
+    <div class="space-y-8 flex-1 overflow-y-auto pr-2">
+        
+        <!-- AI 角色设定 -->
+        <div class="space-y-4">
+            <div class="section-title flex justify-between">
+                <span>角色设定</span>
+                <button onclick="characterManager.deleteCurrent()" class="text-[9px] text-red-800 hover:text-red-500">删除角色</button>
+            </div>
+
+<!-- ==== 视觉配置 (Visual Rigging) ==== -->
+<div class="border border-white/10 bg-white/5 p-4 rounded-lg mb-6">
+    <div class="flex justify-between items-center mb-4 cursor-pointer" onclick="document.getElementById('visual-rig-content').classList.toggle('hidden')">
+        <label class="text-[#D4AF37] text-xs font-bold tracking-widest uppercase"><i class="ph-fill ph-crosshair"></i> 视觉配置 (Visual Rig)</label>
+        <i class="ph ph-caret-down text-gray-500"></i>
+    </div>
+    
+    <div id="visual-rig-content" class="hidden space-y-4">
+        
+        <!-- 1. 实时预览窗口 -->
+        <div class="relative w-full aspect-[3/4] bg-[#0a0a0a] border border-white/10 overflow-hidden group select-none" id="rig-preview-container">
+            <!-- 网格背景 -->
+            <div class="absolute inset-0 opacity-20 pointer-events-none" style="background-image: radial-gradient(#333 1px, transparent 1px); background-size: 20px 20px;"></div>
+            
+            <!-- 立绘预览 (可交互) -->
+            <div id="rig-char-wrapper" class="w-full h-full transition-transform duration-200 origin-center pointer-events-none">
+                <img id="rig-char-img" src="" class="w-full h-full object-cover">
+            </div>
+
+            <!-- 点击层 (用于捕捉坐标) -->
+            <div class="absolute inset-0 cursor-crosshair z-10" onclick="visualRigManager.handlePreviewClick(event)"></div>
+
+            <!-- 锚点标记容器 -->
+            <div id="rig-anchors-layer" class="absolute inset-0 pointer-events-none z-20">
+                <!-- JS 会在这里生成星星和圆点 -->
+            </div>
+            
+            <div class="absolute bottom-2 right-2 text-[8px] text-gray-500 bg-black/50 px-2 rounded">点击画面设置锚点</div>
+        </div>
+        <div class="flex justify-between items-center text-[9px] text-gray-500 px-1 mt-1">
+             <span id="rig-sprite-name">预览: (无)</span>
+             <button onclick="visualRigManager.cyclePreviewSprite(1)" class="hover:text-white transition">切换预览图 &gt;</button>
+        </div>
+        <!-- 2. 基础骨架滑块 -->
+        <div class="space-y-3 border-t border-white/5 pt-3">
+            <div class="text-[9px] text-gray-400 uppercase tracking-wider">Base Rig (默认姿态)</div>
+            
+            <div class="flex items-center gap-2">
+                <span class="text-[9px] w-8 text-right">缩放</span>
+                <input type="range" id="rig-scale" min="0.5" max="2.0" step="0.05" class="flex-1 accent-[#D4AF37] h-1 bg-gray-700 rounded-lg appearance-none" oninput="visualRigManager.updatePreview()">
+                <span id="rig-scale-val" class="text-[9px] w-8 font-mono">1.0</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-[9px] w-8 text-right">X轴</span>
+                <input type="range" id="rig-x" min="-50" max="50" step="1" class="flex-1 accent-[#D4AF37] h-1 bg-gray-700 rounded-lg appearance-none" oninput="visualRigManager.updatePreview()">
+                <span id="rig-x-val" class="text-[9px] w-8 font-mono">0</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-[9px] w-8 text-right">Y轴</span>
+                <input type="range" id="rig-y" min="-50" max="50" step="1" class="flex-1 accent-[#D4AF37] h-1 bg-gray-700 rounded-lg appearance-none" oninput="visualRigManager.updatePreview()">
+                <span id="rig-y-val" class="text-[9px] w-8 font-mono">0</span>
+            </div>
+            <button onclick="visualRigManager.resetBase()" class="text-[9px] text-red-800 hover:text-red-500 w-full text-right underline">重置骨架</button>
         </div>
 
-        <!-- 可见范围选择 -->
-        <h4 style="margin-bottom: 10px; color: #666;">谁可以看见 (并进行互动)</h4>
-        <div id="user-post-visibility-list" class="scrollable" style="max-height: 300px; overflow-y: auto;">
-            <!-- JS 会在这里渲染好友复选框 -->
+        <!-- 3. 锚点管理 -->
+        <div class="space-y-2 border-t border-white/5 pt-3">
+            <div class="flex justify-between items-center">
+                <div class="text-[9px] text-gray-400 uppercase tracking-wider">Focus Anchors (特写点)</div>
+                <button onclick="visualRigManager.setMode('add')" id="btn-add-anchor" class="text-[9px] bg-[#D4AF37]/10 text-[#D4AF37] border border-[#D4AF37]/30 px-2 py-0.5 rounded hover:bg-[#D4AF37] hover:text-black transition">+ 添加</button>
+            </div>
+            
+            <div id="rig-anchor-list" class="space-y-1 max-h-32 overflow-y-auto scrollbar-hide">
+                <!-- JS 生成列表 -->
+            </div>
+            <div id="rig-status-msg" class="text-[9px] text-[#D4AF37] text-center italic h-4"></div>
+        </div>
+        
+        <button onclick="visualRigManager.save()" class="gold-btn w-full py-2 mt-2">保存视觉配置</button>
+    </div>
+</div>
+            <div class="input-group">
+                <label>角色姓名</label>
+                <input type="text" id="persona-name" class="mono-input" autocomplete="off">
+            </div>
+            <div class="input-group">
+                <label>性格与背景描述</label>
+                <textarea id="persona-prompt" rows="6" class="mono-input"></textarea>
+            </div>
+        </div>
+        
+        <!-- 玩家设定 -->
+        <div class="space-y-4">
+            <div class="section-title">你的设定 (玩家)</div>
+            <div class="input-group">
+                <label>你的名字</label>
+                <input type="text" id="user-name" class="mono-input" autocomplete="off">
+            </div>
+            <div class="input-group">
+                <label>你的外貌/性格描述</label>
+                <textarea id="user-desc" rows="3" class="mono-input"></textarea>
+            </div>
+            <div class="input-group">
+                <label>你们的关系</label>
+                <input type="text" id="user-relation" class="mono-input" autocomplete="off">
+            </div>
         </div>
     </div>
 </div>
 
-<!-- === 新增：通用底部操作菜单 (删除动态/评论用) === -->
-<div id="universal-action-menu" class="modal-overlay" onclick="closeUniversalMenu()">
-    <div class="action-sheet" onclick="event.stopPropagation()">
-        <!-- 这里的内容会由 JS 动态生成 -->
-        <div id="action-sheet-content"></div>
-        <div class="action-item cancel" onclick="closeUniversalMenu()" style="border-top: 5px solid #f0f2f5; justify-content: center;">取消</div>
-    </div>
+                <!-- Tab 3: Assets -->
+                <div id="tab-assets" class="tab-content hidden flex flex-col h-full">
+                    <div class="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
+    <button onclick="assetManager.filter('all')" class="filter-chip active" data-filter="all">全部</button>
+    <button onclick="assetManager.filter('char')" class="filter-chip" data-filter="char">立绘</button>
+    <button onclick="assetManager.filter('bg')" class="filter-chip" data-filter="bg">背景</button>
+    <button onclick="assetManager.filter('bgm')" class="filter-chip" data-filter="bgm">音乐</button>
+    <button onclick="assetManager.filter('sfx')" class="filter-chip" data-filter="sfx">音效</button>
 </div>
+                    <div class="flex gap-2 mb-4">
+                        <div class="flex-1 relative">
+                            <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs"></i>
+                            <input type="text" id="asset-search" placeholder="搜索素材..." class="w-full bg-[#111] border border-white/10 text-white text-xs py-2 pl-8 pr-2 focus:border-[#D4AF37] outline-none transition" oninput="assetManager.refreshCache()">
+                        </div>
+                    </div>
+                    <div class="border border-white/10 p-4 mb-4">
+                        <div class="grid grid-cols-2 gap-2 mb-2">
+                            <select id="upload-type" class="mono-input">
+                                <option value="char">立绘</option>
+                                <option value="bg">背景</option>
+                                <option value="bgm">BGM</option>
+                                <option value="sfx">音效</option>
+                            </select>
+                            <div class="relative flex items-center">
+                                <input type="text" id="upload-tag" placeholder="标签名..." class="mono-input pr-8" autocomplete="off">
+                                <button onclick="tagManager.addFromInput('upload-tag')" class="absolute right-2 text-[#D4AF37] hover:text-white" title="存为常用标签">
+                                    <i class="ph ph-plus-circle"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="upload-tag-bank" class="flex gap-2 mb-3 overflow-x-auto pb-1 scrollbar-hide h-8 items-center"></div>
+                        <div class="flex items-center justify-between gap-2 mb-3">
+                            <div class="flex items-center gap-2 cursor-pointer" onclick="document.getElementById('upload-exclusive').click()">
+                                <input type="checkbox" id="upload-exclusive" class="accent-[#D4AF37]">
+                                <label for="upload-exclusive" class="text-[10px] text-gray-400 cursor-pointer select-none">专属</label>
+                            </div>
+                            <button onclick="document.getElementById('upload-file').click()" class="bg-[#D4AF37] text-black px-4 py-1 text-xs font-bold hover:opacity-90 flex items-center gap-1">
+                                <i class="ph ph-upload-simple"></i> 上传文件
+                            </button>
+                            <input type="file" id="upload-file" class="hidden" multiple onchange="assetManager.handleQuickUpload(this)">
+                        </div>
+                    </div>
+                    <div id="assets-list" class="flex-1 overflow-y-auto grid grid-cols-3 gap-3 content-start pr-1 pb-10"></div>
+                </div>
 
-<!-- === 新增：通用二次确认弹窗 === -->
-<div id="universal-confirm-modal" class="modal-overlay">
-    <div class="confirm-box" onclick="event.stopPropagation()">
-        <h3 id="confirm-title">确认删除？</h3>
-        <p id="confirm-desc">此操作无法撤销。</p>
-        <div class="confirm-buttons">
-            <button class="btn-cancel" onclick="closeConfirmModal()">取消</button>
-            <button class="btn-confirm destruct" onclick="executeDelete()">删除</button>
+                <!-- Tab 4: Data -->
+                <div id="tab-data" class="tab-content hidden space-y-6">
+                    <div class="border border-white/10 p-6 flex flex-col gap-4">
+                        <p class="text-[10px] text-gray-500 uppercase tracking-widest mb-2">备份与恢复</p>
+                        <button onclick="dataManager.backup()" class="gold-btn-outline py-3 flex items-center justify-center gap-2">导出备份文件 (.json)</button>
+                        <div class="relative"><button onclick="document.getElementById('restore-file').click()" class="gold-btn-outline py-3 w-full flex items-center justify-center gap-2 border-white/30 text-gray-400 hover:text-white hover:border-white">恢复备份文件</button><input type="file" id="restore-file" class="hidden" onchange="dataManager.restore(this)"></div>
+                        <div class="border-t border-white/10 mt-4 pt-4"><button onclick="characterManager.resetMemory()" class="text-[10px] text-red-900 hover:text-red-500 w-full text-left">重置当前角色记忆</button></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-6 border-t border-white/10"><button onclick="app.saveAllSettings()" class="gold-btn w-full py-3">保存设置</button></div>
+        </div>
+
+        <div id="start-overlay" class="layer-overlay bg-[#050505]" onclick="app.start()">
+            <div class="text-[#D4AF37] text-3xl font-serif italic tracking-widest mb-4">Wake Up</div>
+            <div class="text-gray-600 text-[10px] tracking-[0.5em] uppercase">点击唤醒</div>
         </div>
     </div>
-</div>
 
-<!-- === 新增：选择召唤对象的弹窗 === -->
-<div id="modal-summon-selection" class="modal-overlay" onclick="closeSummonModal()">
-    <div class="packet-modal" onclick="event.stopPropagation()">
-        <div class="packet-header">
-            <h3>选择要召唤的角色</h3>
-            <button class="close-btn" onclick="closeSummonModal()"><i class="fas fa-times"></i></button>
-        </div>
-        <div id="summon-friend-list" class="summon-list">
-            <!-- JS 渲染列表 -->
+<!-- ==== 日记系统全屏弹窗  ==== -->
+<div id="journal-modal" class="fixed inset-0 z-[80] bg-black/90 backdrop-blur-md flex items-center justify-center transition-opacity duration-300 opacity-0 pointer-events-none invisible">
+    
+    <!-- 窗口容器 -->
+    <div class="journal-window w-full h-full md:w-[400px] md:h-[85vh] md:max-h-[900px] bg-[#050505] md:border border-[#333] md:rounded-[40px] flex flex-col relative overflow-hidden shadow-2xl">
+        
+        <!-- === 新增：批量操作顶部栏 (默认隐藏) === -->
+    <div id="mem-batch-bar">
+        <span id="mem-batch-count">SELECTED: 0</span>
+        <div class="batch-actions">
+            <button class="batch-btn" onclick="journalManager.batchCopy()" title="复制"><i class="ph ph-copy"></i></button>
+            <button class="batch-btn danger" onclick="journalManager.batchDelete()" title="删除"><i class="ph ph-trash"></i></button>
+            <div class="w-[1px] h-6 bg-black/10 self-center mx-2"></div>
+            <button class="batch-exit-btn" onclick="journalManager.exitBatchMode()">DONE</button>
         </div>
     </div>
-</div>
 
-<!-- ▼▼▼ 请将这段代码粘贴到 index.html 的 </body> 标签之前 ▼▼▼ -->
+        <!-- === 1. 头部 (固定定位) === -->
+        <header class="journal-new-header">
+            <!-- 上半部分：日期与关闭 -->
+            <div class="header-top">
+                <!-- 点击触发日历 -->
+                <div class="date-trigger" onclick="journalManager.showCalendar()">
+                    <span id="journal-header-day" class="date-day">--</span>
+                    <div class="date-meta">
+                        <span id="journal-header-month" class="date-month">---</span>
+                        <span id="journal-year-display" class="date-year">----</span>
+                    </div>
+                </div>
 
-<!-- ==============================================
-   新增：AI 主动来电呼叫界面
-   ============================================== -->
-<div id="screen-incoming-call" class="screen">
-    <div class="incoming-call-bg"></div>
-    <div class="caller-info">
-        <img id="caller-avatar" src="" class="caller-avatar">
-        <h2 id="caller-name">角色名</h2>
-        <p id="caller-status">正在邀请你进行视频通话...</p>
-        <p id="caller-reason">“我想打电话给你...”</p>
+                <!-- 关闭按钮 -->
+                <button onclick="journalManager.close()" class="close-btn">
+                    <i class="ph ph-x"></i>
+                </button>
+            </div>
+
+            <!-- 下半部分：视图切换 -->
+            <div class="view-switcher">
+                <button id="btn-view-diary" onclick="journalManager.switchView('diary')" class="switch-item active">
+                    Diary
+                </button>
+                <button id="btn-view-memory" onclick="journalManager.switchView('memory')" class="switch-item">
+                    Memory
+                </button>
+            </div>
+        </header>
+
+        <!-- 装饰线 -->
+        <div class="decorative-line"></div>
+
+        <!-- === 2. 内容滚动区域 === -->
+        <div class="journal-scroll-area">
+            
+            <!-- 视图 A: 日记本 -->
+<div id="view-diary" class="view-section active-section relative">
+    
+    <!-- 1. 标题 -->
+    <h1 id="noir-title" class="diary-title">Loading...</h1>
+    
+    <!-- 2. 新增：元数据行 (天气 & 心情) -->
+    <div class="journal-meta-row">
+        <!-- 天气胶囊 -->
+        <div class="meta-chip weather-chip">
+            <i id="meta-weather-icon" class="ph ph-cloud-moon"></i>
+            <span id="meta-weather-text">Unknown</span>
+        </div>
+        <!-- 装饰竖线 -->
+        <div class="w-[1px] h-3 bg-[#333]"></div>
+        <!-- 心情胶囊 -->
+        <div class="meta-chip mood-chip">
+            <i class="ph ph-heartbeat animate-pulse"></i>
+            <span id="meta-mood-text">Calm</span>
+        </div>
     </div>
-    <div class="call-actions">
-        <div class="action-btn-call-wrapper">
-            <button class="call-btn decline" onclick="declineCall()">
-                <i class="fas fa-phone-slash"></i>
+
+    <!-- 3. 正文 -->
+    <div id="noir-body" class="diary-text mt-6"></div>
+
+    <!-- 4. 底部功能区 (保持不变) -->
+    <div class="footer-actions">
+        <div id="diary-actions-footer">
+            <button id="refresh-diary-btn" onclick="journalManager.handleDiaryRefresh()" class="refresh-btn">
+                <i class="ph ph-arrows-clockwise"></i>
+                <span id="refresh-diary-text">REGENERATE DIARY</span>
             </button>
-            <span>拒接</span>
         </div>
-        <div class="action-btn-call-wrapper">
-            <button class="call-btn accept" onclick="acceptCall()">
-                <i class="fas fa-video"></i>
-            </button>
-            <span>接听</span>
+
+        <div id="comment-section" class="comment-preview hidden">
+            <div class="comment-header">Echoes (Comments)</div>
+            <div id="comment-thread" class="space-y-4 mb-4"></div>
+            <form id="comment-form" onsubmit="event.preventDefault(); journalManager.submitComment();" class="relative">
+                <input type="text" id="comment-textarea" class="comment-input" placeholder="Write a reply to him..." required>
+                <button id="comment-submit-btn" type="submit" class="absolute right-0 bottom-2 text-[#D4AF37] text-xs">SEND</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- 5. 新增：巨大的背景氛围图标  -->
+    <i id="noir-bg-icon" class="ph ph-cloud-rain absolute -right-6 bottom-20 text-[12rem] text-[#111] pointer-events-none z-[-1] opacity-60"></i>
+</div>
+
+            <!-- 视图 B: 记忆核心 -->
+<div id="view-memory" class="view-section hidden-section relative"> 
+    
+
+    <div class="flex items-center justify-between mb-6">
+        <div class="text-[10px] tracking-[0.2em] text-[#D4AF37] font-bold">LONG-TERM CORE</div>
+        <div class="flex gap-2">
+             <button onclick="aiEngine.forceSummarize()" class="text-xs text-[#D4AF37] border border-[#D4AF37]/30 px-2 py-1">COMPRESS</button>
+        </div>
+    </div>
+    
+    <!-- 记忆列表容器 -->
+    <div id="memory-timeline-view" class="space-y-6 pb-12"></div>
+    
+    <!-- 隐藏的统计和输入框保持不变 -->
+    <textarea id="char-memory" class="w-full h-[60vh] bg-[#080808] text-gray-400 font-mono text-xs p-4 border-none outline-none resize-none hidden"></textarea>
+    <div class="mt-4 flex justify-between text-[9px] text-gray-600 border-t border-white/5 pt-2">
+        <span>THRESHOLD: <input type="number" id="memory-threshold" value="20" class="bg-transparent text-center w-8 text-white"></span>
+        <span id="mem-usage-display">0 chars</span>
+    </div>
+</div>
+
+        </div>
+    </div>
+
+    <!-- 日历弹窗保持原样 -->
+    <div id="calendar-modal" class="absolute inset-0 z-[90] bg-black/80 backdrop-blur-sm flex items-center justify-center transition-opacity duration-300 opacity-0 pointer-events-none invisible" onclick="journalManager.hideCalendar()">
+        <div class="calendar-container" onclick="event.stopPropagation()">
+            <div class="calendar-header">
+                <button onclick="journalManager.changeMonth(-1)" class="calendar-nav-arrow"><i class="ph ph-caret-left"></i></button>
+                <span id="calendar-month-display" class="month-display-text">NOV 2025</span>
+                <button onclick="journalManager.changeMonth(1)" class="calendar-nav-arrow"><i class="ph ph-caret-right"></i></button>
+            </div>
+            <div class="calendar-grid">
+                <div class="weekday">日</div><div class="weekday">一</div><div class="weekday">二</div><div class="weekday">三</div><div class="weekday">四</div><div class="weekday">五</div><div class="weekday">六</div>
+            </div>
+            <div class="calendar-legend">
+                <div class="legend-item"><span class="legend-dot dot-diary"></span> 日记</div>
+                <div class="legend-item"><span class="legend-dot dot-memory"></span> 记忆</div>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="holidays-cn.js"></script>
+    
+    <script src="script.js"></script>
+
+    <!-- 侧边功能坞 -->
+    <div id="dock-panel" onclick="dockManager.close()">
+        <div class="dock-content" onclick="event.stopPropagation()">
+            <div class="p-6 border-b border-white/10 flex justify-between items-center">
+                <span class="text-[#D4AF37] text-xs tracking-[0.2em] font-serif italic">MODULES</span>
+                <button onclick="dockManager.close()" class="text-gray-500 hover:text-white"><i class="ph ph-x text-lg"></i></button>
+            </div>
+            <div id="dock-home" class="app-grid">
+                <div class="app-icon" onclick="memoManager.open()">
+                    <div class="app-icon-box"><i class="ph ph-notebook"></i></div>
+                    <span class="app-name">备忘录</span>
+                </div>
+                <!--日记本 -->
+                <div class="app-icon" onclick="journalManager.open()">
+                    <div class="app-icon-box"><i class="ph ph-book-bookmark"></i></div>
+                    <span class="app-name">日记</span>
+                </div> 
+                <!-- 日历图标 -->
+<div class="app-icon" onclick="calendarManager.open()">
+    <div class="app-icon-box"><i class="ph ph-calendar-check"></i></div>
+    <span class="app-name">日程表</span>
+</div>            
+                <div class="app-icon" style="opacity:0.3; cursor:default">
+                    <div class="app-icon-box border-dashed border-gray-700"><i class="ph ph-device-mobile"></i></div>
+                    <span class="app-name">WIP</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 顶部通知 Toast -->
+    <div id="toast-notification">
+        <i class="ph ph-pen-nib toast-icon"></i>
+        <span id="toast-msg" class="toast-text">记录已更新</span>
+    </div>
+
+<div id="memo-modal-overlay" class="memo-modal-overlay hidden">
+    <div class="memo-modal-content">
+        <div class="memo-modal-header">
+            <h3 id="memo-modal-title">新增备忘</h3>
+            <button onclick="memoManager.hideModal()" class="close-modal-btn">&times;</button>
+        </div>
+
+        <form onsubmit="event.preventDefault(); memoManager.saveMemo();">
+            <!-- 隐藏域，用于存储正在编辑的备忘录ID -->
+            <input type="hidden" id="memo-edit-id">
+
+            <div class="form-group">
+                <label for="memo-topic-select">分类 (TOPIC)</label>
+                <select id="memo-topic-select" class="form-select">
+                    <!-- JS会在这里生成选项 -->
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="memo-content-textarea">内容 (CONTENT)</label>
+                <textarea id="memo-content-textarea" class="form-textarea" placeholder="记录下重要的事..." required></textarea>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" onclick="memoManager.hideModal()" class="action-btn btn-secondary">取消</button>
+                <button type="submit" class="action-btn btn-primary">保存</button>
+            </div>
+        </form>
+    </div>
+</div>
+<!-- ==== 备忘录独立窗口 ==== -->
+<div id="memo-window-modal" class="fixed inset-0 z-[80] bg-black/90 backdrop-blur-md flex items-center justify-center transition-opacity duration-300 opacity-0 pointer-events-none invisible">
+    
+    <!-- 窗口容器 (复用日记窗口样式) -->
+    <div class="journal-window w-full h-full md:w-[400px] md:h-[85vh] md:max-h-[900px] bg-[#050505] md:border border-[#333] md:rounded-[40px] flex flex-col relative overflow-hidden shadow-2xl">
+        
+        <!-- 1. 头部 -->
+        <header class="flex justify-between items-center px-6 py-5 border-b border-white/5 bg-[#0a0a0a]">
+            <div class="flex flex-col">
+                <h2 class="text-[#D4AF37] text-xs font-bold tracking-[0.2em] uppercase">Memo Record</h2>
+                <span class="text-[9px] text-gray-600 font-mono mt-1">IMPORTANT NOTES</span>
+            </div>
+            <div class="flex gap-4">
+                <button onclick="memoManager.showModal()" class="text-[#D4AF37] hover:text-white transition" title="新建">
+                    <i class="ph ph-plus text-xl"></i>
+                </button>
+                <button onclick="memoManager.close()" class="text-gray-500 hover:text-white transition" title="关闭">
+                    <i class="ph ph-x text-xl"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- 2. 控制区 (搜索与筛选) -->
+        <div class="px-6 py-4 bg-[#050505] border-b border-white/5">
+            <!-- 搜索框 -->
+            <div class="relative mb-4">
+                <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-600 text-sm"></i>
+                <input type="text" id="memo-search-input" oninput="memoManager.render()" 
+                       class="w-full bg-[#111] border border-[#222] rounded-full py-2 pl-9 pr-4 text-xs text-gray-300 focus:border-[#D4AF37] focus:outline-none transition-colors font-mono"
+                       placeholder="Search memos...">
+            </div>
+            <!-- 筛选胶囊 -->
+            <div id="memo-filter-chips" class="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
+                <!-- JS 会自动填充这里 -->
+            </div>
+        </div>
+
+        <!-- 3. 列表内容区 -->
+        <div id="memo-container" class="flex-1 overflow-y-auto p-6 space-y-3 scrollbar-hide bg-[#050505]">
+            <!-- JS 会自动填充卡片 -->
+        </div>
+    </div>
+</div>
+
+<!-- ==== 智能日程窗口 ==== -->
+<div id="calendar-window-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center transition-opacity duration-300 opacity-0 pointer-events-none invisible">
+    
+    <div class="journal-window w-full h-full md:w-[400px] md:h-[85vh] md:max-h-[900px] bg-[#050505] md:border border-[#333] md:rounded-[40px] flex flex-col relative overflow-hidden shadow-2xl">
+        
+        <!-- 头部：日期选择 -->
+        <div class="cal-header-bg">
+            <div class="flex justify-between items-end mb-4">
+                <div>
+                    <div class="text-[9px] text-gray-500 tracking-[0.2em] font-mono">SCHEDULE</div>
+                    <div id="cal-current-month" class="text-xl text-[#D4AF37] font-serif italic">Loading...</div>
+                </div>
+                <!-- 刷新/重新生成按钮 -->
+                <button onclick="calendarManager.generateSchedule(true)" class="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center text-gray-500 hover:text-white hover:border-white transition" title="重新生成本周日程">
+                    <i id="cal-refresh-icon" class="ph ph-arrows-clockwise"></i>
+                </button>
+                <button onclick="calendarManager.close()" class="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center text-gray-500 hover:text-white ml-2">
+                    <i class="ph ph-x"></i>
+                </button>
+            </div>
+            
+            <!-- 星期胶囊 -->
+            <div id="cal-week-row" class="flex justify-between gap-2 overflow-x-auto scrollbar-hide pb-2">
+                <!-- JS 会自动填入 -->
+            </div>
+        </div>
+
+        <!-- 日程内容区域 -->
+        <div id="cal-timeline" class="cal-timeline scrollbar-hide">
+            <!-- JS 会自动填入 -->
+        </div>
+
+        <!-- 底部交互提示条 -->
+        <div id="cal-hint-box" class="cal-hint-box">
+            <div class="w-8 h-8 rounded-full bg-[#333] flex items-center justify-center text-[#D4AF37] flex-shrink-0">
+                <i class="ph-fill ph-chat-centered-text"></i>
+            </div>
+            <div class="flex-1">
+                <div class="text-[9px] text-[#D4AF37] font-bold uppercase mb-1">Interaction Hint</div>
+                <div id="cal-hint-text" class="text-xs text-gray-300 leading-tight">...</div>
+            </div>
         </div>
     </div>
 </div>
