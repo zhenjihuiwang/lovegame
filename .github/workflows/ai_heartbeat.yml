@@ -1,0 +1,26 @@
+name: AI Heartbeat
+
+on:
+  schedule:
+    # 每15分钟运行一次。
+    # 注意：GitHub Actions 的最小间隔通常是5分钟，
+    # 实际执行时间可能会有几分钟的延迟。
+    - cron: '0,15,30,45 * * * *'
+  
+  # 也可以手动触发，方便调试
+  workflow_dispatch:
+
+jobs:
+  trigger-vercel-heartbeat:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Vercel AI Heartbeat
+        run: |
+          # 这是你的 Vercel Serverless Function 的完整 URL
+          # 替换为你的 Vercel 项目的实际 URL + /api/heartbeat
+          # 例如：https://your-love-os.vercel.app/api/heartbeat
+          VERCEL_FUNCTION_URL="https://your-love-os-project-name.vercel.app/api/heartbeat" 
+          
+          # 发送一个 HTTP GET 请求来触发你的函数
+          # 使用 curl -f 来确保如果请求失败（例如404或500），Action 会失败
+          curl -f $VERCEL_FUNCTION_URL
