@@ -17,9 +17,8 @@ jobs:
       - name: Trigger Vercel AI Heartbeat
         run: |
           # 这是你的 Vercel Serverless Function 的完整 URL
-          # 替换为你的 Vercel 项目的实际 URL + /api/heartbeat
-          # 例如：https://your-love-os.vercel.app/api/heartbeat
-          VERCEL_FUNCTION_URL="https://your-love-os-project-name.vercel.app/api/heartbeat" 
+          # 我已经帮你替换成了你的实际网址
+          VERCEL_FUNCTION_URL="https://mumulovegame.vercel.app/api/heartbeat" 
           
           # 发送一个 HTTP GET 请求来触发你的函数
           # 使用 curl -f 来确保如果请求失败（例如404或500），Action 会失败
