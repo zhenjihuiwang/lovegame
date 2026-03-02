@@ -113,38 +113,81 @@ const tagManager = {
 };
 
 // ==========================================
-// 3. 素材管理器
+// 3. 素材管理器 (修复版：解决手机端图片裂开问题)
 // ==========================================
 const assetManager = {
-    cache: { char: {}, bg: {}, bgm: {}, sfx: {} }, allItems: [], currentFilter: 'all', currentEditingId: null,
-    // 用于跟踪哪些 URL 是列表卡片正在使用的
+    cache: { char: {}, bg: {}, bgm: {}, sfx: {} },
+    allItems: [],
+    currentFilter: 'all',
+    currentEditingId: null,
+    currentEditingItem: null,
+    // 专门用于存储列表卡片的 URL，方便统一销毁
     listCardUrls: new Set(),
-    init: async function() { await dbSystem.init(); await this.refreshCache(); tagManager.init(); },
+    // 专门用于存储缓存供游戏运行的 URL
+    gameCacheUrls: new Set(),
+
+    init: async function() {
+        await dbSystem.init();
+        await this.refreshCache();
+        tagManager.init();
+    },
+
+    // 核心修复：增加 URL 销毁逻辑
     refreshCache: async function() {
+        // 1. 【关键步骤】先销毁所有旧的 URL，释放手机内存
+        this.gameCacheUrls.forEach(url => URL.revokeObjectURL(url));
+        this.gameCacheUrls.clear();
+        
+        this.listCardUrls.forEach(url => URL.revokeObjectURL(url));
+        this.listCardUrls.clear();
+
+        // 2. 从数据库重新加载
         const items = await dbSystem.getAllAssets();
         const currentId = characterManager.currentId;
         this.allItems = items;
-        // 清空缓存但保留 URL 引用，让浏览器垃圾回收处理
+        
+        // 重置结构
         this.cache = { char: {}, bg: {}, bgm: {}, sfx: {} };
+
         items.forEach(item => {
             const isGlobal = !item.ownerId || item.ownerId === 'global';
             const isMine = currentId && item.ownerId === currentId;
+            
+            // 只为“属于当前角色”或“全局”的素材生成游戏运行用的缓存
             if (isGlobal || isMine) {
                 const url = URL.createObjectURL(item.blob);
+                this.gameCacheUrls.add(url); // 加入集合以便后续销毁
+
                 let type = item.type === 'audio' ? 'bgm' : item.type;
                 if (!this.cache[type]) this.cache[type] = {};
-                if (!this.cache[type][item.tag] || isMine) { this.cache[type][item.tag] = url; }
+                
+                // 如果标签重复，优先使用角色专属的覆盖全局的
+                if (!this.cache[type][item.tag] || isMine) {
+                    this.cache[type][item.tag] = url;
+                }
             }
         });
+
+        // 3. 重新渲染列表
         this.renderList();
+        
+        // 4. 【关键步骤】强制刷新导演系统的画面，防止还显示着旧的裂开的图
+        if (typeof director !== 'undefined') {
+            // 稍微延迟一下确保 DOM 更新
+            setTimeout(() => director.renderStep(), 50);
+        }
     },
+
     renderList: function() {
         const listEl = document.getElementById('assets-list');
         const searchInput = document.getElementById('asset-search');
         if(!listEl) return;
+        
         listEl.innerHTML = "";
         const keyword = searchInput ? searchInput.value.toLowerCase() : "";
+
         this.allItems.forEach(item => {
+            // 筛选逻辑
             let typeMatch = this.currentFilter === 'all';
             if (this.currentFilter !== 'all') {
                 if (this.currentFilter === 'bgm' && item.type === 'audio') {
@@ -153,19 +196,22 @@ const assetManager = {
                     typeMatch = (item.type === this.currentFilter);
                 }
             }
+            
             const isGlobal = !item.ownerId || item.ownerId === 'global';
             const isMine = characterManager.currentId && item.ownerId === characterManager.currentId;
             const scopeMatch = isGlobal || isMine;
             const keywordMatch = item.tag.toLowerCase().includes(keyword);
+
             if (typeMatch && scopeMatch && keywordMatch) {
                 // 为列表卡片创建独立的 URL
                 const cardUrl = URL.createObjectURL(item.blob);
-                this.listCardUrls.add(cardUrl);
+                this.listCardUrls.add(cardUrl); // 加入集合以便后续销毁
                 this.createAssetCard(item, cardUrl, listEl, isGlobal ? 'G' : 'L');
             }
         });
     },
-    // 将 blob 转换为 Data URL（base64），避免移动端 blob URL 失效问题
+
+    // 辅助：Blob 转 Base64 (用于模态框预览，更稳定)
     blobToDataUrl: function(blob) {
         return new Promise((resolve) => {
             const reader = new FileReader();
@@ -173,20 +219,24 @@ const assetManager = {
             reader.readAsDataURL(blob);
         });
     },
+
     createAssetCard: function(item, url, container, badge) {
         const div = document.createElement('div');
         div.className = "relative aspect-square bg-white/5 border border-white/10 group cursor-pointer hover:border-[#D4AF37] transition";
-        // 点击时直接从 blob 创建 URL，不依赖卡片的 url 参数
         div.onclick = () => this.openModal(item);
+        
         let icon = "";
         if(item.type === 'bgm' || item.type === 'audio') icon = '<i class="ph ph-music-notes text-2xl text-blue-400"></i>';
         else if(item.type === 'sfx') icon = '<i class="ph ph-waves text-2xl text-green-400"></i>';
         else icon = `<img src="${url}" class="w-full h-full object-cover grayscale group-hover:grayscale-0 transition">`;
+        
         div.innerHTML = item.type.includes('char') || item.type.includes('bg') ? icon : `<div class="w-full h-full flex items-center justify-center text-white/50">${icon}</div>`;
+        
         const badgeColor = badge === 'G' ? 'text-gray-500' : 'text-[#D4AF37]';
         div.innerHTML += `<div class="absolute top-1 right-1 text-[8px] font-bold ${badgeColor}">${badge}</div><div class="absolute bottom-0 inset-x-0 bg-black/80 text-[9px] text-gray-300 text-center py-1 font-mono truncate px-1">${item.tag}</div>`;
         container.appendChild(div);
     },
+
     filter: function(type) {
         this.currentFilter = type;
         document.querySelectorAll('.filter-chip').forEach(btn => {
@@ -195,91 +245,119 @@ const assetManager = {
         });
         this.renderList();
     },
+
     openModal: async function(item) {
         this.currentEditingId = item.id;
-        this.currentEditingItem = item; // 保存当前编辑的素材对象
+        this.currentEditingItem = item;
         const modal = document.getElementById('asset-modal');
         const preview = document.getElementById('asset-preview-area');
         const tagInput = document.getElementById('edit-asset-tag');
         const typeInput = document.getElementById('edit-asset-type');
         
-        // 显示加载状态
         preview.innerHTML = `<div class="flex items-center justify-center h-full"><i class="ph ph-spinner animate-spin text-2xl text-[#D4AF37]"></i></div>`;
         
-        // 使用 Data URL 避免移动端 blob URL 失效问题
+        // 使用 Data URL 进行预览，避免手机端 Blob 丢失问题
         const dataUrl = await this.blobToDataUrl(item.blob);
-        this.currentPreviewDataUrl = dataUrl; // 保存以便后续释放
+        this.currentPreviewDataUrl = dataUrl;
         
         if (item.type.includes('bg') || item.type.includes('char')) {
             preview.innerHTML = `<img src="${dataUrl}" class="h-full object-contain" id="modal-preview-img">`;
         } else {
-            // 音频类型仍然使用 blob URL，因为 Data URL 可能太大
+            // 音频预览保持 Blob URL，因为 Base64 太大可能卡顿
             const blobUrl = URL.createObjectURL(item.blob);
             this.currentPreviewUrl = blobUrl;
             preview.innerHTML = `<div class="text-center"><i class="ph ph-play-circle text-4xl text-[#D4AF37] cursor-pointer hover:scale-110 transition" onclick="new Audio('${blobUrl}').play()"></i><p class="text-[10px] text-gray-500 mt-2">点击试听</p></div>`;
         }
+        
         tagInput.value = item.tag;
         if(typeInput) typeInput.value = item.type;
+        
         const isGlobal = !item.ownerId || item.ownerId === 'global';
         this.setEditScope(isGlobal ? 'global' : 'local');
-        modal.style.opacity = "1"; modal.style.pointerEvents = "auto";
+        
+        modal.style.opacity = "1"; 
+        modal.style.pointerEvents = "auto";
         tagManager.renderAll();
     },
+
     closeModal: function() {
         const modal = document.getElementById('asset-modal');
-        modal.style.opacity = "0"; modal.style.pointerEvents = "none";
-        // 释放预览用的 blob URL
+        modal.style.opacity = "0"; 
+        modal.style.pointerEvents = "none";
+        
+        // 模态框关闭时清理预览用的资源
         if (this.currentPreviewUrl) {
             URL.revokeObjectURL(this.currentPreviewUrl);
             this.currentPreviewUrl = null;
         }
-        // 释放 Data URL
         this.currentPreviewDataUrl = null;
         this.currentEditingId = null;
         this.currentEditingItem = null;
     },
+
     setEditScope: function(scope) {
         const btnGlobal = document.getElementById('scope-btn-global');
         const btnLocal = document.getElementById('scope-btn-local');
         if(btnGlobal) btnGlobal.classList.remove('active');
         if(btnLocal) btnLocal.classList.remove('active');
+        
         if (scope === 'global' && btnGlobal) btnGlobal.classList.add('active');
         else if (btnLocal) btnLocal.classList.add('active');
+        
         document.getElementById('asset-modal').dataset.scope = scope;
     },
+
     saveChanges: async function() {
         if (!this.currentEditingId) return;
         const tag = document.getElementById('edit-asset-tag').value.trim();
         const type = document.getElementById('edit-asset-type').value;
         const scope = document.getElementById('asset-modal').dataset.scope;
         const ownerId = scope === 'global' ? 'global' : characterManager.currentId;
+
         if (!tag) return alert("标签不能为空");
+
         try {
+            // 1. 更新数据库
             await dbSystem.updateAsset(this.currentEditingId, { tag: tag, type: type, ownerId: ownerId });
-            // 关闭模态框释放资源
+            
+            // 2. 关闭窗口 (顺序很重要：先关窗口，再刷缓存)
             this.closeModal();
-            // 刷新缓存和列表
+
+            // 3. 刷新缓存 (这里会触发旧 URL 销毁和新 URL 生成)
             await this.refreshCache();
-            // 更新缓存后，如果当前正在显示的角色使用了这个素材，刷新显示
-            director.renderStep();
-        } catch (e) { alert("更新失败"); }
+            
+            // 4. 提示
+            memoManager.showToast("素材已更新");
+        } catch (e) { 
+            console.error(e);
+            alert("更新失败: " + e.message); 
+        }
     },
+
     deleteAsset: async function() {
         if (!this.currentEditingId) return;
-        if (confirm("确定永久删除此素材？")) { await dbSystem.deleteAsset(this.currentEditingId); this.closeModal(); this.refreshCache(); }
+        if (confirm("确定永久删除此素材？")) { 
+            await dbSystem.deleteAsset(this.currentEditingId); 
+            this.closeModal(); 
+            this.refreshCache(); 
+        }
     },
+
     handleQuickUpload: async function(input) {
         const files = input.files;
         if (!files || files.length === 0) return;
+
         const type = document.getElementById('upload-type').value;
         const inputTag = document.getElementById('upload-tag').value.trim();
         const isExclusive = document.getElementById('upload-exclusive').checked;
         const ownerId = isExclusive ? characterManager.currentId : 'global';
+
         if (isExclusive && !characterManager.currentId) {
             alert("请先选择角色才能上传专属素材");
             input.value = "";
             return;
         }
+
         let successCount = 0;
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
@@ -293,6 +371,7 @@ const assetManager = {
                     finalTag = inputTag;
                 }
             }
+
             try {
                 await dbSystem.saveAsset(type, finalTag, file, ownerId);
                 successCount++;
@@ -300,8 +379,10 @@ const assetManager = {
                 console.error(`File ${file.name} upload failed`);
             }
         }
+
         alert(`成功上传 ${successCount} 个素材到 [${type}] 分类！`);
         this.refreshCache();
+        
         document.getElementById('upload-tag').value = "";
         input.value = "";
     }
