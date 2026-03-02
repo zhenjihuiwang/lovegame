@@ -119,6 +119,12 @@ const assetManager = {
     cache: { char: {}, bg: {}, bgm: {}, sfx: {} }, allItems: [], currentFilter: 'all', currentEditingId: null,
     init: async function() { await dbSystem.init(); await this.refreshCache(); tagManager.init(); },
     refreshCache: async function() {
+        // 先释放旧的缓存 URL，避免内存泄漏
+        for (const type in this.cache) {
+            for (const tag in this.cache[type]) {
+                URL.revokeObjectURL(this.cache[type][tag]);
+            }
+        }
         const items = await dbSystem.getAllAssets();
         const currentId = characterManager.currentId;
         this.allItems = items;
@@ -155,7 +161,13 @@ const assetManager = {
             const scopeMatch = isGlobal || isMine;
             const keywordMatch = item.tag.toLowerCase().includes(keyword);
             if (typeMatch && scopeMatch && keywordMatch) {
-                const url = URL.createObjectURL(item.blob);
+                // 使用缓存中的 URL，避免重复创建
+                let type = item.type === 'audio' ? 'bgm' : item.type;
+                let url = this.cache[type] && this.cache[type][item.tag];
+                // 如果缓存中没有，创建新的 URL
+                if (!url) {
+                    url = URL.createObjectURL(item.blob);
+                }
                 this.createAssetCard(item, url, listEl, isGlobal ? 'G' : 'L');
             }
         });
@@ -183,14 +195,18 @@ const assetManager = {
     },
     openModal: function(item, url) {
         this.currentEditingId = item.id;
+        this.currentEditingItem = item; // 保存当前编辑的素材对象
         const modal = document.getElementById('asset-modal');
         const preview = document.getElementById('asset-preview-area');
         const tagInput = document.getElementById('edit-asset-tag');
         const typeInput = document.getElementById('edit-asset-type');
+        // 始终从 blob 创建新的 URL，确保可靠性
+        const blobUrl = URL.createObjectURL(item.blob);
+        this.currentPreviewUrl = blobUrl; // 保存以便后续释放
         if (item.type.includes('bg') || item.type.includes('char')) {
-            preview.innerHTML = `<img src="${url}" class="h-full object-contain">`;
+            preview.innerHTML = `<img src="${blobUrl}" class="h-full object-contain">`;
         } else {
-            preview.innerHTML = `<div class="text-center"><i class="ph ph-play-circle text-4xl text-[#D4AF37] cursor-pointer hover:scale-110 transition" onclick="new Audio('${url}').play()"></i><p class="text-[10px] text-gray-500 mt-2">点击试听</p></div>`;
+            preview.innerHTML = `<div class="text-center"><i class="ph ph-play-circle text-4xl text-[#D4AF37] cursor-pointer hover:scale-110 transition" onclick="new Audio('${blobUrl}').play()"></i><p class="text-[10px] text-gray-500 mt-2">点击试听</p></div>`;
         }
         tagInput.value = item.tag;
         if(typeInput) typeInput.value = item.type;
@@ -201,7 +217,14 @@ const assetManager = {
     },
     closeModal: function() {
         const modal = document.getElementById('asset-modal');
-        modal.style.opacity = "0"; modal.style.pointerEvents = "none"; this.currentEditingId = null;
+        modal.style.opacity = "0"; modal.style.pointerEvents = "none";
+        // 释放预览用的 blob URL
+        if (this.currentPreviewUrl) {
+            URL.revokeObjectURL(this.currentPreviewUrl);
+            this.currentPreviewUrl = null;
+        }
+        this.currentEditingId = null;
+        this.currentEditingItem = null;
     },
     setEditScope: function(scope) {
         const btnGlobal = document.getElementById('scope-btn-global');
@@ -222,7 +245,9 @@ const assetManager = {
         try {
             await dbSystem.updateAsset(this.currentEditingId, { tag: tag, type: type, ownerId: ownerId });
             this.closeModal();
-            this.refreshCache();
+            await this.refreshCache();
+            // 更新缓存后，如果当前正在显示的角色使用了这个素材，刷新显示
+            director.renderStep();
         } catch (e) { alert("更新失败"); }
     },
     deleteAsset: async function() {
