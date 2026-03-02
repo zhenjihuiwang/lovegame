@@ -117,17 +117,14 @@ const tagManager = {
 // ==========================================
 const assetManager = {
     cache: { char: {}, bg: {}, bgm: {}, sfx: {} }, allItems: [], currentFilter: 'all', currentEditingId: null,
+    // 用于跟踪哪些 URL 是列表卡片正在使用的
+    listCardUrls: new Set(),
     init: async function() { await dbSystem.init(); await this.refreshCache(); tagManager.init(); },
     refreshCache: async function() {
-        // 先释放旧的缓存 URL，避免内存泄漏
-        for (const type in this.cache) {
-            for (const tag in this.cache[type]) {
-                URL.revokeObjectURL(this.cache[type][tag]);
-            }
-        }
         const items = await dbSystem.getAllAssets();
         const currentId = characterManager.currentId;
         this.allItems = items;
+        // 清空缓存但保留 URL 引用，让浏览器垃圾回收处理
         this.cache = { char: {}, bg: {}, bgm: {}, sfx: {} };
         items.forEach(item => {
             const isGlobal = !item.ownerId || item.ownerId === 'global';
@@ -161,21 +158,26 @@ const assetManager = {
             const scopeMatch = isGlobal || isMine;
             const keywordMatch = item.tag.toLowerCase().includes(keyword);
             if (typeMatch && scopeMatch && keywordMatch) {
-                // 使用缓存中的 URL，避免重复创建
-                let type = item.type === 'audio' ? 'bgm' : item.type;
-                let url = this.cache[type] && this.cache[type][item.tag];
-                // 如果缓存中没有，创建新的 URL
-                if (!url) {
-                    url = URL.createObjectURL(item.blob);
-                }
-                this.createAssetCard(item, url, listEl, isGlobal ? 'G' : 'L');
+                // 为列表卡片创建独立的 URL
+                const cardUrl = URL.createObjectURL(item.blob);
+                this.listCardUrls.add(cardUrl);
+                this.createAssetCard(item, cardUrl, listEl, isGlobal ? 'G' : 'L');
             }
+        });
+    },
+    // 将 blob 转换为 Data URL（base64），避免移动端 blob URL 失效问题
+    blobToDataUrl: function(blob) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.readAsDataURL(blob);
         });
     },
     createAssetCard: function(item, url, container, badge) {
         const div = document.createElement('div');
         div.className = "relative aspect-square bg-white/5 border border-white/10 group cursor-pointer hover:border-[#D4AF37] transition";
-        div.onclick = () => this.openModal(item, url);
+        // 点击时直接从 blob 创建 URL，不依赖卡片的 url 参数
+        div.onclick = () => this.openModal(item);
         let icon = "";
         if(item.type === 'bgm' || item.type === 'audio') icon = '<i class="ph ph-music-notes text-2xl text-blue-400"></i>';
         else if(item.type === 'sfx') icon = '<i class="ph ph-waves text-2xl text-green-400"></i>';
@@ -193,19 +195,27 @@ const assetManager = {
         });
         this.renderList();
     },
-    openModal: function(item, url) {
+    openModal: async function(item) {
         this.currentEditingId = item.id;
         this.currentEditingItem = item; // 保存当前编辑的素材对象
         const modal = document.getElementById('asset-modal');
         const preview = document.getElementById('asset-preview-area');
         const tagInput = document.getElementById('edit-asset-tag');
         const typeInput = document.getElementById('edit-asset-type');
-        // 始终从 blob 创建新的 URL，确保可靠性
-        const blobUrl = URL.createObjectURL(item.blob);
-        this.currentPreviewUrl = blobUrl; // 保存以便后续释放
+        
+        // 显示加载状态
+        preview.innerHTML = `<div class="flex items-center justify-center h-full"><i class="ph ph-spinner animate-spin text-2xl text-[#D4AF37]"></i></div>`;
+        
+        // 使用 Data URL 避免移动端 blob URL 失效问题
+        const dataUrl = await this.blobToDataUrl(item.blob);
+        this.currentPreviewDataUrl = dataUrl; // 保存以便后续释放
+        
         if (item.type.includes('bg') || item.type.includes('char')) {
-            preview.innerHTML = `<img src="${blobUrl}" class="h-full object-contain">`;
+            preview.innerHTML = `<img src="${dataUrl}" class="h-full object-contain" id="modal-preview-img">`;
         } else {
+            // 音频类型仍然使用 blob URL，因为 Data URL 可能太大
+            const blobUrl = URL.createObjectURL(item.blob);
+            this.currentPreviewUrl = blobUrl;
             preview.innerHTML = `<div class="text-center"><i class="ph ph-play-circle text-4xl text-[#D4AF37] cursor-pointer hover:scale-110 transition" onclick="new Audio('${blobUrl}').play()"></i><p class="text-[10px] text-gray-500 mt-2">点击试听</p></div>`;
         }
         tagInput.value = item.tag;
@@ -223,6 +233,8 @@ const assetManager = {
             URL.revokeObjectURL(this.currentPreviewUrl);
             this.currentPreviewUrl = null;
         }
+        // 释放 Data URL
+        this.currentPreviewDataUrl = null;
         this.currentEditingId = null;
         this.currentEditingItem = null;
     },
@@ -244,7 +256,9 @@ const assetManager = {
         if (!tag) return alert("标签不能为空");
         try {
             await dbSystem.updateAsset(this.currentEditingId, { tag: tag, type: type, ownerId: ownerId });
+            // 关闭模态框释放资源
             this.closeModal();
+            // 刷新缓存和列表
             await this.refreshCache();
             // 更新缓存后，如果当前正在显示的角色使用了这个素材，刷新显示
             director.renderStep();
