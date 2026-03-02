@@ -1022,6 +1022,13 @@ const aiEngine = {
                 body: JSON.stringify({ model: conf.model, messages: this.history, temperature: 0.7 })
             });
             const data = await res.json();
+            if (data.error) {
+                throw new Error(data.error.message || "API Error");
+            }
+            if (!data.choices || !data.choices[0]) {
+    console.warn("API 响应异常:", data); // 方便调试
+    throw new Error("API 返回格式错误或无内容");
+}
             content = data.choices[0].message.content;
             const cleanContent = content.replace(/```json/g, "").replace(/```/g, "").trim();
             try {
@@ -1648,6 +1655,7 @@ const app = {
         assetManager.init().then(() => {
             document.getElementById('api-url').value = localStorage.getItem('conf_url') || "https://gcli.ggchan.dev";
             document.getElementById('api-key').value = localStorage.getItem('conf_key') || "";
+            document.getElementById('contact-frequency').value = localStorage.getItem('conf_frequency') || 'medium';
             const savedModel = localStorage.getItem('conf_model') || "gpt-3.5-turbo";
             const select = document.getElementById('api-model');
             const opt = document.createElement('option');
@@ -1662,6 +1670,7 @@ const app = {
         localStorage.setItem('conf_url', document.getElementById('api-url').value);
         localStorage.setItem('conf_key', document.getElementById('api-key').value);
         localStorage.setItem('conf_model', document.getElementById('api-model').value);
+        localStorage.setItem('conf_frequency', document.getElementById('contact-frequency').value);
         characterManager.updateCurrentFromUI();
         uiManager.closeSettings();
         alert("设置已保存");
@@ -2149,7 +2158,13 @@ const memoManager = {
         const keyword = searchInput ? searchInput.value.toLowerCase() : "";
         let memos = (char.memos || []).filter(memo => {
             const categoryMatch = this.currentFilter === 'all' || memo.topic === this.currentFilter;
-            const keywordMatch = memo.content.toLowerCase().includes(keyword) || this.categories[memo.topic]?.name.toLowerCase().includes(keyword);
+            // 先获取安全的分类名称
+const category = this.categories[memo.topic] || this.categories['default'];
+const categoryName = category ? category.name : "";
+const memoContent = memo.content || "";
+
+// 再进行比较
+const keywordMatch = memoContent.toLowerCase().includes(keyword) || categoryName.toLowerCase().includes(keyword);
             return categoryMatch && keywordMatch;
         });
         if (memos.length === 0) {
@@ -2359,6 +2374,262 @@ const statusManager = {
         else if (aiEnv === 'snow') { text = "Snowy"; icon = "ph-snowflake"; }
         document.getElementById('weather-text-ai').innerText = `${text}`;
         document.getElementById('weather-icon-ai').className = `ph-fill ${icon} text-lg text-[#D4AF37] mb-1`;
+    }
+};
+
+// ==========================================
+// 19. 大地图星轨管理器 (Location Manager)
+// ==========================================
+const locationManager = {
+    isOpen: false,
+
+    initCheck: function() {
+        const char = characterManager.getCurrent();
+        if (!char) return;
+        if (!char.locations || char.locations.length === 0) {
+            char.locations =[
+                { id: 'loc_home', name: '温馨卧室', desc: '一张柔软的大床，阳光很好。', bg: 'bg_room', x: 50, y: 40 },
+                { id: 'loc_work', name: '市中心公司', desc: '忙碌的写字楼，有键盘敲击声。', bg: 'bg_office', x: 25, y: 70 }
+            ];
+            char.currentLocId = 'loc_home';
+            characterManager.save();
+        }
+    },
+
+    openMap: function() {
+        if(typeof dockManager !== 'undefined') dockManager.close();
+        this.initCheck();
+        const modal = document.getElementById('map-window-modal');
+        modal.classList.remove('invisible', 'opacity-0', 'pointer-events-none');
+        modal.classList.add('modal-open');
+        this.isOpen = true;
+        this.renderMap();
+    },
+
+    closeMap: function() {
+        const modal = document.getElementById('map-window-modal');
+        modal.classList.remove('modal-open');
+        modal.classList.add('opacity-0');
+        this.closeEditPanel();
+        setTimeout(() => modal.classList.add('invisible', 'pointer-events-none'), 300);
+        this.isOpen = false;
+    },
+
+    renderMap: function() {
+        const char = characterManager.getCurrent();
+        const container = document.getElementById('map-nodes-container');
+        const svg = document.getElementById('map-svg-lines');
+        container.innerHTML = '';
+        svg.innerHTML = '';
+        if (!char || !char.locations) return;
+
+        // 连线
+        for(let i=0; i<char.locations.length - 1; i++) {
+            const locA = char.locations[i];
+            const locB = char.locations[i+1];
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            line.setAttribute('x1', `${locA.x}%`); line.setAttribute('y1', `${locA.y}%`);
+            line.setAttribute('x2', `${locB.x}%`); line.setAttribute('y2', `${locB.y}%`);
+            svg.appendChild(line);
+        }
+
+        // 星球节点
+        char.locations.forEach(loc => {
+            const isActive = (loc.id === char.currentLocId);
+            const wrapper = document.createElement('div');
+            wrapper.className = 'orb-wrapper';
+            wrapper.style.left = `${loc.x}%`;
+            wrapper.style.top = `${loc.y}%`;
+            
+            wrapper.onclick = (e) => {
+                e.stopPropagation();
+                this.travelTo(loc.id);
+            };
+
+            const editBtn = `<div onclick="event.stopPropagation(); locationManager.openEditPanel('${loc.id}')" class="absolute -top-2 -right-2 text-gray-400 hover:text-white bg-black rounded-full p-1 z-20"><i class="ph ph-gear"></i></div>`;
+
+            wrapper.innerHTML = `
+                ${editBtn}
+                <div class="orb ${isActive ? 'active' : ''}">
+                    ${!isActive ? '<i class="ph-fill ph-planet text-gray-500"></i>' : ''}
+                </div>
+                <div class="orb-label ${isActive ? 'active' : ''}">
+                    ${loc.name}
+                    ${isActive ? '<br><span class="text-[8px] text-gray-500 font-sans">CURRENT</span>' : ''}
+                </div>
+            `;
+            container.appendChild(wrapper);
+        });
+    },
+
+    travelTo: function(id) {
+        const char = characterManager.getCurrent();
+        const loc = char.locations.find(l => l.id === id);
+        if (!loc || char.currentLocId === id) return; 
+
+        char.currentLocId = id;
+        characterManager.save();
+        this.renderMap();
+
+        director.loadScript([{
+            type: 'narration',
+            text: `(来到了 ${loc.name})`,
+            visual: { bg: loc.bg }
+        }]);
+
+        aiEngine.history.push({ 
+            role: 'user', 
+            content: `[系统通知：场景已切换]。你现在身处：【${loc.name}】。环境氛围：${loc.desc}。请在接下来的对话中符合此场景设定。` 
+        });
+        aiEngine.saveContext();
+
+        memoManager.showToast(`抵达: ${loc.name}`);
+        setTimeout(() => this.closeMap(), 500);
+    },
+
+    openEditPanel: function(id) {
+        const panel = document.getElementById('loc-edit-panel');
+        const title = document.getElementById('loc-edit-title');
+        const char = characterManager.getCurrent();
+        
+        // 预览图与隐藏输入框
+        const preview = document.getElementById('loc-bg-preview');
+        const bgInput = document.getElementById('loc-bg');
+        
+        if (id) {
+            const loc = char.locations.find(l => l.id === id);
+            title.innerText = "编辑场景";
+            document.getElementById('loc-id').value = loc.id;
+            document.getElementById('loc-name').value = loc.name;
+            document.getElementById('loc-desc').value = loc.desc;
+            bgInput.value = loc.bg || "";
+            
+            // 如果存在背景并且缓存里有这张图，直接显示预览
+            if (loc.bg && assetManager.cache.bg[loc.bg]) {
+                preview.innerHTML = '';
+                preview.style.backgroundImage = `url(${assetManager.cache.bg[loc.bg]})`;
+            } else {
+                preview.innerHTML = '<i class="ph ph-image text-gray-500 text-xl"></i>';
+                preview.style.backgroundImage = 'none';
+            }
+        } else {
+            title.innerText = "开辟新场景";
+            document.getElementById('loc-id').value = "";
+            document.getElementById('loc-name').value = "";
+            document.getElementById('loc-desc').value = "";
+            bgInput.value = "";
+            
+            preview.innerHTML = '<i class="ph ph-image text-gray-500 text-xl"></i>';
+            preview.style.backgroundImage = 'none';
+        }
+        panel.classList.add('show');
+    },
+
+    closeEditPanel: function() {
+        document.getElementById('loc-edit-panel').classList.remove('show');
+    },
+
+    // ==== 核心升级：直接在面板上传并预览背景 ====
+    handleBgUpload: async function(input) {
+        const file = input.files[0];
+        if (!file) return;
+        
+        // 自动用时间戳给这个图起个名字（防止重名）
+        const tag = 'loc_bg_' + Date.now(); 
+        const ownerId = characterManager.currentId || 'global';
+        
+        memoManager.showToast("正在处理图片...");
+        const preview = document.getElementById('loc-bg-preview');
+        preview.innerHTML = '<i class="ph ph-spinner animate-spin text-[#D4AF37] text-xl"></i>';
+        preview.style.backgroundImage = 'none';
+        
+        try {
+            // 将图悄悄存入素材库的 bg 分类
+            await dbSystem.saveAsset('bg', tag, file, ownerId);
+            // 刷新图库缓存，让我们能拿到刚传的图的临时地址
+            await assetManager.refreshCache(); 
+            
+            // 把自动生成的名字填进隐藏输入框
+            document.getElementById('loc-bg').value = tag;
+            
+            // 让预览框显示这张图
+            const url = assetManager.cache.bg[tag];
+            preview.innerHTML = '';
+            preview.style.backgroundImage = `url(${url})`;
+            
+            memoManager.showToast("背景上传成功！");
+        } catch (e) {
+            console.error(e);
+            alert("上传失败");
+            preview.innerHTML = '<i class="ph ph-warning text-red-500 text-xl"></i>';
+        }
+        input.value = ""; 
+    },
+
+    saveLocation: function() {
+        const idInput = document.getElementById('loc-id').value;
+        const name = document.getElementById('loc-name').value.trim();
+        const desc = document.getElementById('loc-desc').value.trim();
+        const bg = document.getElementById('loc-bg').value.trim();
+
+        if (!name) return alert("必须填写场景名称！");
+
+        const char = characterManager.getCurrent();
+        if (!char.locations) char.locations =[];
+
+        let targetId = idInput;
+
+        if (idInput) {
+            const loc = char.locations.find(l => l.id === idInput);
+            if (loc) {
+                loc.name = name;
+                loc.desc = desc;
+                loc.bg = bg;
+            }
+        } else {
+            targetId = 'loc_' + Date.now();
+            const randomX = Math.floor(Math.random() * 60) + 20;
+            const randomY = Math.floor(Math.random() * 60) + 20;
+            
+            char.locations.push({
+                id: targetId,
+                name: name,
+                desc: desc,
+                bg: bg,
+                x: randomX,
+                y: randomY
+            });
+        }
+
+        characterManager.save();
+        this.closeEditPanel();
+        this.travelTo(targetId);
+    },
+
+    deleteLocation: function() {
+        const idInput = document.getElementById('loc-id').value;
+        if (!idInput) {
+            this.closeEditPanel();
+            return;
+        }
+
+        const char = characterManager.getCurrent();
+        if (char.locations.length <= 1) {
+            return alert("这是最后一个场景了，不能再删除了哦！");
+        }
+
+        if (confirm("确定要抹除这段地点的记忆吗？")) {
+            char.locations = char.locations.filter(l => l.id !== idInput);
+            
+            if (char.currentLocId === idInput) {
+                char.currentLocId = char.locations[0].id;
+                this.travelTo(char.currentLocId);
+            }
+            
+            characterManager.save();
+            this.closeEditPanel();
+            this.renderMap();
+        }
     }
 };
 

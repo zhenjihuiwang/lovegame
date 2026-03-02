@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>AI Otome - LoveOS</title>
+    <link rel="icon" href="data:;base64,iVBORw0KGgo=">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@300;500;700&display=swap" rel="stylesheet">
@@ -17,10 +18,10 @@
         <div id="sfx-container"></div>
 
         <!-- 背景层 -->
-        <div class="layer-bg">
-            rc="" class="full-cover transition-all duration-1000 scale-110 parallax-layer" data-depth="0.02"> 
-            <div id="bg-placeholder" class="absolute inset-0 bg-[#0a0a0a] flex items-center justify-center text-[#333] text-xs tracking-[0.3em] font-serif">NO SIGNAL</div>
-        </div>
+<div class="layer-bg">
+    <img id="bg-img" src="" class="full-cover transition-all duration-1000 scale-110 parallax-layer" data-depth="0.02"> 
+    <div id="bg-placeholder" class="absolute inset-0 bg-[#0a0a0a] flex items-center justify-center text-[#333] text-xs tracking-[0.3em] font-serif">NO SIGNAL</div>
+</div>
 
         <div id="fx-back" class="layer-fx-back pointer-events-none absolute inset-0 transition-opacity duration-1000"></div>
 
@@ -30,7 +31,7 @@
             <div id="parallax-char-container" class="parallax-layer" data-depth="0.06">
         
                 <div id="char-wrapper">
-                    <img id="char-img" src="" class="full-cover hidden breathing"> 
+                    <img id="char-img" src="" class="parallax-char-sprite hidden breathing">
                 </div>
             </div>
         </div>
@@ -323,7 +324,20 @@
                         <div class="flex gap-2"><select id="api-model" class="mono-input flex-1"></select><button onclick="aiEngine.fetchModels()" class="gold-btn-outline">测试连接</button></div>
                         <div id="brain-status" class="text-[10px] text-gray-500 mt-1 text-right">未连接</div>
                     </div>
-                    
+                
+                    <!-- 新增：主动联系频率设置 -->
+<div class="border-t border-white/10 pt-4 mt-2">
+    <div class="flex justify-between items-center">
+        <label class="text-gray-400 text-xs">主动联系频率</label>
+        <select id="contact-frequency" class="mono-input w-32 text-xs py-1">
+            <option value="high">高 (像热恋期)</option>
+            <option value="medium" selected>中 (像稳定期)</option>
+            <option value="low">低 (像老夫老妻)</option>
+            <option value="off">从不 (让他专心)</option>
+        </select>
+    </div>
+    <p class="text-[9px] text-gray-600 mt-1">控制他不在你身边时，想念并联系你的频率。</p>
+</div>
                     <div class="border-t border-white/10 pt-4 mt-2">
                         <div class="flex justify-between items-center">
                             <label class="text-gray-400 text-xs">开启 3D 视差 (陀螺仪)</label>
@@ -685,6 +699,11 @@
                     <div class="app-icon-box"><i class="ph ph-book-bookmark"></i></div>
                     <span class="app-name">日记</span>
                 </div> 
+                <!-- === 新增：大地图图标 === -->
+                <div class="app-icon" onclick="locationManager.openMap()">
+                    <div class="app-icon-box"><i class="ph ph-planet"></i></div>
+                    <span class="app-name">星轨</span>
+                </div>
                 <!-- 日历图标 -->
 <div class="app-icon" onclick="calendarManager.open()">
     <div class="app-icon-box"><i class="ph ph-calendar-check"></i></div>
@@ -818,6 +837,76 @@
             <div class="flex-1">
                 <div class="text-[9px] text-[#D4AF37] font-bold uppercase mb-1">Interaction Hint</div>
                 <div id="cal-hint-text" class="text-xs text-gray-300 leading-tight">...</div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- ==== 星轨大地图窗口 ==== -->
+<div id="map-window-modal" class="fixed inset-0 z-[80] bg-[#050505] transition-opacity duration-300 opacity-0 pointer-events-none invisible overflow-hidden">
+    <!-- 顶部导航 -->
+    <div class="absolute top-8 left-6 right-6 flex justify-between items-center z-20">
+        <div class="text-[#D4AF37] text-xs tracking-[0.3em] font-serif uppercase drop-shadow-md">Locations</div>
+        <button onclick="locationManager.closeMap()" class="text-gray-500 hover:text-white"><i class="ph ph-x text-2xl"></i></button>
+    </div>
+
+    <!-- 地图区域 -->
+    <div id="map-area" class="absolute inset-0 pt-24 overflow-hidden" onclick="locationManager.closeEditPanel()">
+        <!-- 连线背景 (JS动态生成) -->
+        <svg id="map-svg-lines" class="absolute inset-0 w-full h-full svg-lines"></svg>
+        <!-- 节点容器 (JS动态生成) -->
+        <div id="map-nodes-container" class="absolute inset-0"></div>
+    </div>
+
+    <!-- 底部添加按钮 -->
+    <div class="absolute bottom-10 left-6 right-6 z-20">
+        <button onclick="event.stopPropagation(); locationManager.openEditPanel(null)" class="w-full bg-black/40 border border-[#D4AF37]/30 text-[#D4AF37] py-4 rounded-full text-xs tracking-widest flex items-center justify-center gap-2 backdrop-blur-md hover:bg-[#D4AF37]/20 transition">
+            <i class="ph ph-plus"></i> 开辟新场景
+        </button>
+    </div>
+
+    <!-- ==== 场景配置面板 (从底部滑出) ==== -->
+    <div id="loc-edit-panel" class="loc-edit-panel" onclick="event.stopPropagation()">
+        <div class="flex justify-between items-center mb-4 border-b border-white/10 pb-2">
+            <h3 id="loc-edit-title" class="text-[#D4AF37] text-sm tracking-widest font-serif">配置场景</h3>
+            <button onclick="locationManager.closeEditPanel()" class="text-gray-500"><i class="ph ph-caret-down"></i></button>
+        </div>
+        <input type="hidden" id="loc-id">
+        <div class="space-y-4">
+            <div class="input-group">
+                <label>场景名称</label>
+                <input type="text" id="loc-name" class="mono-input" placeholder="如：温馨卧室" autocomplete="off">
+            </div>
+            <div class="input-group">
+                <label>环境描述 (给AI看的设定)</label>
+                <textarea id="loc-desc" class="mono-input h-16" placeholder="如：一张柔软的大床，月光透过窗纱洒进来..."></textarea>
+            </div>
+            
+            <!-- ==== 带预览图的背景上传模块 ==== -->
+            <div class="input-group">
+                <label>场景背景图</label>
+                <div class="flex items-center gap-4 mt-2">
+                    <!-- 预览图框 -->
+                    <div id="loc-bg-preview" class="w-16 h-16 bg-[#111] border border-white/10 rounded-lg flex items-center justify-center overflow-hidden bg-cover bg-center shrink-0">
+                        <i class="ph ph-image text-gray-500 text-xl"></i>
+                    </div>
+                    <!-- 按钮与隐藏输入框 -->
+                    <div class="flex-1 flex flex-col gap-2">
+                        <!-- 隐藏的 input 用于保存生成的图片标签 -->
+                        <input type="hidden" id="loc-bg" value="">
+                        
+                        <button type="button" onclick="document.getElementById('loc-bg-upload').click()" class="bg-[#D4AF37]/10 text-[#D4AF37] border border-[#D4AF37]/30 px-3 py-2 rounded text-xs hover:bg-[#D4AF37] hover:text-black transition flex items-center justify-center gap-2 font-bold tracking-widest">
+                            <i class="ph ph-upload-simple"></i> 立即上传本地图片
+                        </button>
+                        <!-- 隐藏的真实上传控件 -->
+                        <input type="file" id="loc-bg-upload" class="hidden" accept="image/*" onchange="locationManager.handleBgUpload(this)">
+                    </div>
+                </div>
+            </div>
+            <!-- ==== 模块结束 ==== -->
+
+            <div class="flex justify-between gap-4 pt-2">
+                <button onclick="locationManager.deleteLocation()" class="text-xs text-red-800 hover:text-red-500 tracking-widest">删除此场景</button>
+                <button onclick="locationManager.saveLocation()" class="bg-[#D4AF37] text-black px-6 py-2 rounded text-xs font-bold tracking-widest">保存并前往</button>
             </div>
         </div>
     </div>

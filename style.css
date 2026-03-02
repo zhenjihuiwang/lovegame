@@ -16,7 +16,12 @@ body { background-color: #000; overflow: hidden; font-family: "PingFang SC", "Mi
 
 /* 呼吸动画 */
 .breathing { animation: breathe 5s ease-in-out infinite; }
-@keyframes breathe { 0% { transform: scale(1.0); } 50% { transform: scale(1.03); } 100% { transform: scale(1.0); } }
+/* 修复版呼吸动画：必须保留 translate(-50%, -50%) 才能居中 */
+@keyframes breathe { 
+    0% { transform: translate(-50%, -50%) scale(1.0); } 
+    50% { transform: translate(-50%, -50%) scale(1.03); } 
+    100% { transform: translate(-50%, -50%) scale(1.0); } 
+}
 #char-wrapper { width: 100%; height: 100%; transform-origin: 50% 25%; transition: transform 1.2s cubic-bezier(0.2, 0.8, 0.2, 1); }
 
 /* ==== 核心组件 ==== */
@@ -1253,3 +1258,78 @@ mood-glow {
     transform: translateY(100px); opacity: 0; transition: all 0.4s; z-index: 100;
 }
 .cal-hint-box.show { transform: translateY(0); opacity: 1; }
+
+/* 专用于视差角色立绘的样式 */
+.parallax-char-sprite {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    
+    /* 核心修改：让图片高度略大于屏幕，宽度自适应 */
+    /* 这样可以保证人物的完整性，同时为上下晃动留出空间 */
+    height: 110%;
+    width: auto;
+
+    /* 保证图片不会被拉伸变形 */
+    object-fit: contain; 
+    
+    /* 确保图片在容器中居中对齐，防止因尺寸变化导致偏移 */
+    max-width: none;
+    max-height: 110%;
+}
+/* =========================================
+   记忆星轨地图 (Memory Map)
+   ========================================= */
+.svg-lines { z-index: 1; pointer-events: none; }
+.svg-lines line { stroke: rgba(255,255,255,0.08); stroke-width: 1; }
+
+.orb-wrapper {
+    position: absolute; 
+    display: flex; flex-direction: column; align-items: center; 
+    transform: translate(-50%, -50%); /* 确保居中定位 */
+    z-index: 10;
+}
+
+.orb { 
+    width: 44px; height: 44px; border-radius: 50%; 
+    display: flex; align-items: center; justify-content: center; 
+    position: relative; cursor: pointer; transition: all 0.3s;
+    background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1);
+    backdrop-filter: blur(4px);
+}
+/* 外圈旋转虚线 */
+.orb::before { 
+    content: ''; position: absolute; inset: -4px; border-radius: 50%; 
+    border: 1px dashed rgba(212, 175, 55, 0.4); 
+    animation: rotate-orb 10s linear infinite; opacity: 0; transition: opacity 0.3s; 
+}
+.orb:active { transform: scale(0.9); }
+
+/* 当前所在位置的高亮样式 */
+.orb.active { 
+    background: rgba(212, 175, 55, 0.15); border-color: #D4AF37;
+    box-shadow: 0 0 20px rgba(212, 175, 55, 0.3); 
+}
+.orb.active::before { opacity: 1; }
+.orb.active::after { 
+    content: ''; position: absolute; width: 8px; height: 8px; 
+    background: #D4AF37; border-radius: 50%; box-shadow: 0 0 10px #D4AF37; 
+}
+
+.orb-label { 
+    margin-top: 8px; white-space: nowrap; font-size: 10px; 
+    letter-spacing: 2px; color: #aaa; text-align: center; 
+    text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+}
+.orb-label.active { color: #D4AF37; font-weight: bold; }
+
+/* 底部滑出的编辑面板 */
+.loc-edit-panel { 
+    position: absolute; bottom: 0; left: 0; right: 0; 
+    background: rgba(10,10,10,0.95); backdrop-filter: blur(15px); 
+    border-top: 1px solid rgba(212,175,55,0.3); padding: 24px; 
+    transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); 
+    z-index: 60; border-radius: 20px 20px 0 0; box-shadow: 0 -10px 40px rgba(0,0,0,0.5);
+}
+.loc-edit-panel.show { transform: translateY(0); }
